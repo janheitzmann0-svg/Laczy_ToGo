@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f2f0e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Laczy ToGo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Laczy ToGo — Baustellenaufnahme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Spectral:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f0e8; --bg-warm:#efece2; --card:#eae6da; --card-hover:#e4dfd0;
+  --ink:#2f2e29; --ink-soft:#6b685d; --hair:#d9d4c5;
+  --theme:#a8392f; --theme-deep:#8a2d25; --theme-soft:#c46b5f; --theme-tint:#f0e3df;
+  --ok:#7a8a5c;
+  /* Ampel: leer / teilweise / fertig */
+  --st-empty:#a8392f; --st-empty-tint:#f0e1de;
+  --st-part:#c98a2e;  --st-part-tint:#f3e8d4;
+  --st-done:#5f8a4f;  --st-done-tint:#e2ecdd;
+  --shadow:0 1px 2px rgba(47,46,41,.04),0 6px 18px rgba(47,46,41,.06);
+  --shadow-lg:0 2px 6px rgba(47,46,41,.06),0 18px 44px rgba(47,46,41,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--ink);font-family:'Spectral',Georgia,serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;min-height:100dvh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:radial-gradient(120% 80% at 80% -10%, rgba(168,57,47,.05), transparent 60%),radial-gradient(100% 70% at -10% 110%, rgba(122,138,92,.04), transparent 55%);}
+.app{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:0 20px;padding-top:env(safe-area-inset-top);padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+/* topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 2px 4px;min-height:60px}
+.status{display:inline-flex;align-items:center;gap:7px;font-family:'Fraunces';font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+.status .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(122,138,92,.18)}
+.status.offline .dot{background:var(--theme);box-shadow:0 0 0 3px rgba(168,57,47,.18)}
+/* Speicher-Status */
+.savestate{display:inline-flex;align-items:center;gap:6px;font-family:'Fraunces';font-size:11px;letter-spacing:.04em;color:var(--ink-soft);transition:opacity .3s}
+.savestate svg{width:13px;height:13px}
+.savestate.saving{color:var(--theme-deep)}
+.savestate.saved{color:var(--ok)}
+.savestate .spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Installations-Hinweis */
+.install-bar{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;background:var(--theme);color:#fff;border-radius:15px;padding:14px 16px;display:none;align-items:center;gap:12px;box-shadow:0 8px 28px rgba(168,57,47,.32);animation:slideUp .3s ease both}
+.install-bar.show{display:flex}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+.install-bar .ii{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.18);display:grid;place-items:center;flex-shrink:0}
+.install-bar .ii svg{width:20px;height:20px}
+.install-bar .it{flex:1;min-width:0}
+.install-bar .it b{display:block;font-family:'Fraunces';font-weight:500;font-size:15px}
+.install-bar .it span{font-size:12px;opacity:.85}
+.install-bar button{flex-shrink:0;border:none;border-radius:10px;padding:9px 14px;font-family:'Fraunces';font-size:13px;cursor:pointer;background:#fff;color:var(--theme-deep)}
+.install-bar .x{background:rgba(255,255,255,.18);color:#fff;padding:9px 11px}
+.iconbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--hair);background:var(--card);display:grid;place-items:center;color:var(--ink-soft);cursor:pointer;transition:.18s}
+.iconbtn:active{transform:scale(.95);background:var(--card-hover)}
+.backbtn{display:inline-flex;align-items:center;gap:8px;background:none;border:none;color:var(--ink-soft);font-family:'Fraunces';font-size:13px;letter-spacing:.04em;cursor:pointer;padding:6px 2px}
+.backbtn:active{color:var(--theme)}
+
+/* hero */
+.hero{text-align:center;padding:18px 0 8px}
+.mark{display:block;margin:0 auto 6px;width:30px;height:42px}
+.logo{font-family:'Fraunces';font-weight:400;font-size:clamp(46px,15vw,68px);line-height:.92;letter-spacing:-.01em;color:var(--ink)}
+.logo .i{font-style:italic;color:var(--theme)}
+.logo .togo{display:block;font-style:italic;font-weight:300;font-size:.34em;letter-spacing:.32em;text-transform:uppercase;color:var(--theme-deep);margin-top:10px}
+.kicker{font-family:'Fraunces';font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-top:16px}
+.lede{max-width:30em;margin:14px auto 0;font-size:16px;line-height:1.6;color:var(--ink-soft)}
+.lede b{color:var(--ink);font-style:italic;font-weight:500}
+.divider{display:flex;align-items:center;gap:14px;margin:30px 2px 18px}
+.divider::before,.divider::after{content:"";height:1px;flex:1;background:var(--hair)}
+.divider span{font-family:'Fraunces';font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+
+/* module grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:430px){.grid{grid-template-columns:1fr}}
+.card{position:relative;background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:20px 18px 18px;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s,background .18s;box-shadow:var(--shadow);overflow:hidden;text-align:left}
+.card:active{transform:scale(.98)}
+.card:hover{background:var(--card-hover);box-shadow:var(--shadow-lg)}
+.card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--theme);opacity:0;transition:.2s}
+.card:hover::after{opacity:.9}
+.card.soon{opacity:.55}
+.card .ic{width:42px;height:42px;border-radius:12px;background:var(--bg-warm);border:1px solid var(--hair);display:grid;place-items:center;color:var(--theme);margin-bottom:14px}
+.card h3{font-family:'Fraunces';font-weight:400;font-size:21px;letter-spacing:-.01em;margin-bottom:6px}
+.card p{font-size:13.5px;line-height:1.45;color:var(--ink-soft)}
+.card .prog{margin-top:12px;height:4px;border-radius:4px;background:var(--bg-warm);overflow:hidden}
+.card .prog > i{display:block;height:100%;background:var(--theme);width:0;transition:width .4s}
+.badge{position:absolute;top:14px;right:14px;font-family:'Fraunces';font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--theme-deep);background:var(--theme-tint);border:1px solid #e4cfc9;padding:3px 7px;border-radius:20px}
+.badge.gray{color:var(--ink-soft);background:var(--bg-warm);border-color:var(--hair)}
+/* Ampel-Zustände auf Kacheln */
+.card .prog > i{background:var(--st-empty)}
+.card.st-empty .badge{color:var(--st-empty);background:var(--st-empty-tint);border-color:#e4cfc9}
+.card.st-empty::after{background:var(--st-empty)}
+.card.st-empty .prog > i{background:var(--st-empty)}
+.card.st-part .badge{color:#9a6512;background:var(--st-part-tint);border-color:#e7d3ad}
+.card.st-part::after{background:var(--st-part)}
+.card.st-part .prog > i{background:var(--st-part)}
+.card.st-done .badge{color:var(--st-done);background:var(--st-done-tint);border-color:#cadcc0}
+.card.st-done::after{background:var(--st-done);opacity:.9}
+.card.st-done .prog > i{background:var(--st-done)}
+.card .ic{transition:color .3s,background .3s,border-color .3s}
+.card.st-done .ic{color:var(--st-done);background:var(--st-done-tint);border-color:#cadcc0}
+.foot{text-align:center;margin-top:34px;font-size:12px;color:var(--ink-soft);font-family:'Fraunces';letter-spacing:.04em}
+
+/* views */
+.view{display:none;animation:fade .25s ease both}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* module header */
+.mod-head{padding:8px 2px 4px}
+.mod-title{font-family:'Fraunces';font-weight:400;font-size:30px;letter-spacing:-.01em;margin-top:10px}
+.mod-sub{font-size:14px;color:var(--ink-soft);margin-top:4px;line-height:1.5}
+.mod-meta{display:flex;align-items:center;gap:10px;margin-top:16px}
+.metabar{flex:1;height:5px;border-radius:5px;background:var(--card);overflow:hidden}
+.metabar > i{display:block;height:100%;background:var(--st-empty);width:0;transition:width .4s,background .4s}
+.mod-meta.st-part .metabar > i{background:var(--st-part)}
+.mod-meta.st-done .metabar > i{background:var(--st-done)}
+.metapct{font-family:'Fraunces';font-size:12px;color:var(--ink-soft);min-width:34px;text-align:right;transition:color .3s}
+.mod-meta.st-part .metapct{color:#9a6512}
+.mod-meta.st-done .metapct{color:var(--st-done)}
+
+/* accordion */
+.acc{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+.sec{background:var(--card);border:1px solid var(--hair);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.sec-head{display:flex;align-items:center;gap:12px;padding:16px 16px;cursor:pointer;user-select:none}
+.sec-head .si{width:34px;height:34px;border-radius:10px;background:var(--bg-warm);border:1px solid var(--hair);display:grid;place-items:center;color:var(--theme);flex-shrink:0}
+.sec-head .si svg{width:18px;height:18px}
+.sec-head h4{flex:1;font-family:'Fraunces';font-weight:400;font-size:18px}
+.sec-head .chev{color:var(--ink-soft);transition:transform .25s}
+.sec.open .sec-head .chev{transform:rotate(180deg)}
+.sec-dot{width:9px;height:9px;border-radius:50%;background:var(--st-empty);flex-shrink:0;transition:.3s;box-shadow:0 0 0 3px var(--st-empty-tint)}
+.sec.sd-part .sec-dot{background:var(--st-part);box-shadow:0 0 0 3px var(--st-part-tint)}
+.sec.sd-done .sec-dot{background:var(--st-done);box-shadow:0 0 0 3px var(--st-done-tint)}
+.sec-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.sec-inner{padding:4px 16px 18px}
+
+/* fields */
+.field{margin-top:14px}
+.field:first-child{margin-top:6px}
+.field > label{display:block;font-family:'Fraunces';font-size:12px;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:6px}
+.field .hint{font-style:italic;font-size:11px;opacity:.8}
+input[type=text],input[type=number],input[type=tel],input[type=email],textarea,select{
+  width:100%;background:var(--bg);border:1px solid var(--hair);border-radius:11px;padding:12px 13px;
+  font-family:'Spectral',serif;font-size:15px;color:var(--ink);transition:.15s;appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--theme-soft);background:#fff;box-shadow:0 0 0 3px rgba(168,57,47,.08)}
+textarea{resize:vertical;min-height:74px;line-height:1.5}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b685d' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row2 .field{margin-top:14px}
+
+/* chip choices (single + multi) */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:'Spectral',serif;font-size:14px;padding:9px 14px;border-radius:11px;border:1px solid var(--hair);background:var(--bg);color:var(--ink-soft);cursor:pointer;transition:.15s}
+.chip:active{transform:scale(.96)}
+.chip.on{background:var(--theme-tint);border-color:var(--theme-soft);color:var(--theme-deep);font-weight:500}
+
+/* toggle (ja/nein) */
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--hair);border-radius:11px;padding:3px;gap:3px}
+.seg button{font-family:'Spectral',serif;font-size:14px;padding:7px 18px;border-radius:8px;border:none;background:none;color:var(--ink-soft);cursor:pointer;transition:.15s}
+.seg button.on{background:var(--theme);color:#fff}
+
+/* sticky save */
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(242,240,232,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding:12px 20px calc(12px + env(safe-area-inset-bottom));display:none;justify-content:center}
+.savebar.show{display:flex}
+.savebar .inner{width:100%;max-width:680px;display:flex;gap:10px;align-items:center}
+.btn{font-family:'Fraunces';font-size:15px;letter-spacing:.02em;border:none;border-radius:12px;padding:13px 20px;cursor:pointer;transition:.15s}
+.btn-primary{background:var(--theme);color:#fff;flex:1}
+.btn-primary:active{background:var(--theme-deep)}
+.btn-ghost{background:var(--card);color:var(--ink-soft);border:1px solid var(--hair)}
+.saved-note{font-family:'Fraunces';font-size:12px;color:var(--ok);text-align:center;flex:1}
+
+/* ===== Bauteil-Instanzen (mehrere Bauteile pro Modul) ===== */
+.inst{background:var(--card);border:1px solid var(--hair);border-radius:16px;margin-top:12px;overflow:hidden;box-shadow:var(--shadow)}
+.inst-head{display:flex;align-items:center;gap:11px;padding:14px 14px;cursor:pointer;user-select:none}
+.inst-head .si{width:34px;height:34px;border-radius:10px;background:var(--bg-warm);border:1px solid var(--hair);display:grid;place-items:center;color:var(--theme);flex-shrink:0}
+.inst-head .si svg{width:18px;height:18px}
+.inst-head .ititle{flex:1;min-width:0}
+.inst-head .ititle b{display:block;font-family:'Fraunces';font-weight:400;font-size:17px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inst-head .ititle span{font-size:12px;color:var(--ink-soft)}
+.inst-dot{width:9px;height:9px;border-radius:50%;background:var(--st-empty);flex-shrink:0;box-shadow:0 0 0 3px var(--st-empty-tint);transition:.3s}
+.inst.sd-part .inst-dot{background:var(--st-part);box-shadow:0 0 0 3px var(--st-part-tint)}
+.inst.sd-done .inst-dot{background:var(--st-done);box-shadow:0 0 0 3px var(--st-done-tint)}
+.inst-head .chev{color:var(--ink-soft);transition:transform .25s;flex-shrink:0}
+.inst.open .inst-head .chev{transform:rotate(180deg)}
+.inst-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.inst-inner{padding:2px 14px 16px}
+.inst-del{margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:none;border:1px dashed var(--hair);color:var(--ink-soft);border-radius:11px;padding:10px;font-family:'Fraunces';font-size:13px;cursor:pointer;transition:.15s}
+.inst-del:active{border-color:var(--st-empty);color:var(--st-empty)}
+
+.add-inst{margin-top:14px;width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:var(--theme-tint);border:1px solid #e4cfc9;color:var(--theme-deep);border-radius:14px;padding:15px;font-family:'Fraunces';font-size:15px;cursor:pointer;transition:.15s}
+.add-inst:active{transform:scale(.98);background:#ecd9d4}
+.add-inst svg{width:18px;height:18px}
+
+.empty-hint{text-align:center;color:var(--ink-soft);font-style:italic;font-size:14px;padding:26px 16px;line-height:1.6}
+.field-info{margin-top:14px;display:flex;gap:9px;align-items:flex-start;background:var(--theme-tint);border:1px solid #e4cfc9;border-radius:11px;padding:11px 13px;font-size:13px;line-height:1.45;color:var(--theme-deep);font-style:italic}
+.field-info svg{width:16px;height:16px;flex-shrink:0;margin-top:1px}
+
+/* type picker (chips, full width) */
+.type-pick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.type-pick .chip{justify-content:center;text-align:center;display:flex;align-items:center}
+
+/* ===== Foto- & Skizzen-Platzhalter ===== */
+.media{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.media-box{position:relative;background:var(--bg);border:1.5px dashed var(--hair);border-radius:13px;padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:.15s;text-align:center}
+.media-box:active{transform:scale(.98)}
+.media-box:hover{border-color:var(--theme-soft);background:#fff}
+.media-box svg{width:26px;height:26px;color:var(--theme);opacity:.8}
+.media-box .ml{font-family:'Fraunces';font-size:13px;color:var(--ink)}
+.media-box .ms{font-size:11px;color:var(--ink-soft);font-style:italic}
+.media-box .soon-tag{position:absolute;top:7px;right:7px;font-family:'Fraunces';font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);background:var(--bg-warm);border:1px solid var(--hair);padding:2px 6px;border-radius:10px}
+
+/* ===== Foto-Galerie ===== */
+.photo-field{margin-top:14px}
+.photo-field > label{display:block;font-family:'Fraunces';font-size:12px;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:8px}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.photo-thumb{position:relative;aspect-ratio:1;border-radius:11px;overflow:hidden;background:var(--bg);border:1px solid var(--hair);cursor:pointer}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-thumb .cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#fff;font-size:9px;padding:10px 5px 3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.photo-thumb .del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(47,46,41,.62);color:#fff;border:none;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(3px)}
+.photo-thumb .del svg{width:12px;height:12px}
+.photo-add{aspect-ratio:1;border-radius:11px;border:1.5px dashed var(--hair);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;color:var(--theme);transition:.15s}
+.photo-add:active{transform:scale(.97)}
+.photo-add:hover{border-color:var(--theme-soft);background:#fff}
+.photo-add svg{width:22px;height:22px}
+.photo-add span{font-family:'Fraunces';font-size:10px;color:var(--ink-soft)}
+
+/* Lightbox / Foto-Detail */
+.lightbox{position:fixed;inset:0;z-index:60;background:rgba(28,27,24,.92);display:none;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.lightbox.show{display:flex}
+.lb-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px}
+.lb-bar button{background:rgba(255,255,255,.12);border:none;color:#fff;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;cursor:pointer}
+.lb-bar button svg{width:20px;height:20px}
+.lb-img{flex:1;display:flex;align-items:center;justify-content:center;padding:0 16px;min-height:0}
+.lb-img img{max-width:100%;max-height:100%;border-radius:12px;object-fit:contain}
+.lb-cap{padding:14px 20px}
+.lb-cap input{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:12px;color:#fff;font-family:'Spectral',serif;font-size:15px}
+.lb-cap input::placeholder{color:rgba(255,255,255,.5)}
+
+/* ===== Skizzen-Editor (Vollbild) ===== */
+.sketch-ed{position:fixed;inset:0;z-index:70;background:var(--bg);display:none;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.sketch-ed.show{display:flex}
+.se-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--hair);background:var(--bg-warm)}
+.se-bar .se-btn{background:var(--card);border:1px solid var(--hair);color:var(--ink);border-radius:11px;padding:9px 14px;font-family:'Fraunces';font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.se-btn:active{transform:scale(.96)}
+.se-btn svg{width:16px;height:16px}
+.se-btn.primary{background:var(--theme);color:#fff;border-color:var(--theme)}
+.se-btn.icon{padding:9px;width:40px;justify-content:center}
+.se-btn:disabled{opacity:.4;pointer-events:none}
+.se-canvas-wrap{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#eee 0% 25%, #f6f6f3 0% 50%) 50%/22px 22px}
+.se-canvas-wrap canvas{position:absolute;touch-action:none;background:transparent}
+#seBgImg{max-width:100%;max-height:100%;pointer-events:none;user-select:none}
+
+/* toolbar unten */
+.se-tools{border-top:1px solid var(--hair);background:var(--bg-warm);padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.se-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.se-color{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.se-color.on{border-color:var(--ink);transform:scale(1.12)}
+.se-sizes{display:inline-flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--hair);border-radius:12px;padding:5px 8px}
+.se-size{width:34px;height:30px;border-radius:8px;border:none;background:none;cursor:pointer;display:grid;place-items:center;transition:.15s}
+.se-size.on{background:var(--theme-tint)}
+.se-size .dot{background:var(--ink);border-radius:50%}
+.se-tool{width:40px;height:40px;border-radius:11px;border:1px solid var(--hair);background:var(--card);cursor:pointer;display:grid;place-items:center;color:var(--ink);transition:.15s}
+.se-tool.on{background:var(--theme);color:#fff;border-color:var(--theme)}
+.se-tool svg{width:19px;height:19px}
+.se-divider{width:1px;align-self:stretch;background:var(--hair);margin:0 2px}
+
+/* Skizzen-Thumbnails im Feld (analog Fotos) */
+.sketch-field{margin-top:14px}
+.sketch-field > label{display:block;font-family:'Fraunces';font-size:12px;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:8px}
+.sketch-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sketch-thumb{position:relative;aspect-ratio:1;border-radius:11px;overflow:hidden;background:#fff;border:1px solid var(--hair);cursor:pointer}
+.sketch-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.sketch-thumb .del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(47,46,41,.62);color:#fff;border:none;display:grid;place-items:center;cursor:pointer}
+.sketch-thumb .del svg{width:12px;height:12px}
+.sketch-add{aspect-ratio:1;border-radius:11px;border:1.5px dashed var(--hair);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;color:var(--theme);transition:.15s}
+.sketch-add:active{transform:scale(.97)}
+.sketch-add:hover{border-color:var(--theme-soft);background:#fff}
+.sketch-add svg{width:22px;height:22px}
+.sketch-add span{font-family:'Fraunces';font-size:10px;color:var(--ink-soft)}
+
+/* Hintergrund-Auswahl-Dialog */
+.bg-choice{position:fixed;inset:0;z-index:75;background:rgba(28,27,24,.55);display:none;align-items:flex-end;justify-content:center}
+.bg-choice.show{display:flex}
+.bg-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:22px 20px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.2)}
+.bg-sheet h3{font-family:'Fraunces';font-weight:400;font-size:21px;text-align:center;margin-bottom:4px}
+.bg-sheet p{text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:18px}
+.bg-opt{display:flex;align-items:center;gap:14px;width:100%;background:var(--card);border:1px solid var(--hair);border-radius:14px;padding:16px;margin-top:10px;cursor:pointer;text-align:left;transition:.15s}
+.bg-opt:active{transform:scale(.98)}
+.bg-opt .bi{width:42px;height:42px;border-radius:11px;background:var(--bg-warm);border:1px solid var(--hair);display:grid;place-items:center;color:var(--theme);flex-shrink:0}
+.bg-opt b{display:block;font-family:'Fraunces';font-weight:400;font-size:16px}
+.bg-opt span{font-size:12px;color:var(--ink-soft)}
+.bg-cancel{width:100%;background:none;border:none;color:var(--ink-soft);font-family:'Fraunces';font-size:14px;padding:14px;margin-top:8px;cursor:pointer}
+
+/* ===== PDF / Bericht-Export ===== */
+.report{position:fixed;inset:0;z-index:80;background:var(--bg);overflow-y:auto;display:none}
+.report.show{display:block}
+.report-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px calc(12px);background:rgba(242,240,232,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top))}
+.report-bar .se-btn{background:var(--card);border:1px solid var(--hair);color:var(--ink);border-radius:11px;padding:10px 16px;font-family:'Fraunces';font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.report-bar .se-btn svg{width:16px;height:16px}
+.report-bar .se-btn.primary{background:var(--theme);color:#fff;border-color:var(--theme)}
+.report-scroll{padding:16px;max-width:760px;margin:0 auto}
+
+/* das eigentliche Dokument */
+#reportDoc{background:#fff;color:#2f2e29;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
+#reportDoc .pg{padding:30px 30px 24px}
+#reportDoc .cover{background:linear-gradient(160deg,#f6f4ec,#efe9da);padding:48px 30px 40px;border-bottom:3px solid var(--theme)}
+#reportDoc .cover .leaf{width:34px;height:46px;margin-bottom:10px}
+#reportDoc .cover .ttl{font-family:'Fraunces';font-size:42px;line-height:.95;color:#2f2e29}
+#reportDoc .cover .ttl .i{font-style:italic;color:var(--theme)}
+#reportDoc .cover .togo{font-style:italic;font-weight:300;font-size:14px;letter-spacing:.3em;text-transform:uppercase;color:var(--theme-deep);display:block;margin-top:8px}
+#reportDoc .cover .sub{font-family:'Fraunces';font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-top:22px}
+#reportDoc .cover .obj{margin-top:8px;font-size:22px;font-family:'Fraunces';color:#2f2e29}
+#reportDoc .cover .meta{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-size:13px}
+#reportDoc .cover .meta .l{color:var(--ink-soft);font-family:'Fraunces';font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+#reportDoc .cover .meta .v{color:#2f2e29;margin-bottom:4px}
+#reportDoc .cover .date{margin-top:24px;font-size:12px;color:var(--ink-soft);font-style:italic}
+
+#reportDoc h2.mod{font-family:'Fraunces';font-weight:400;font-size:26px;color:#2f2e29;margin:8px 0 4px;padding-bottom:8px;border-bottom:2px solid var(--theme)}
+#reportDoc .mod-intro{font-size:13px;color:var(--ink-soft);font-style:italic;margin-bottom:14px}
+#reportDoc h3.sec{font-family:'Fraunces';font-weight:500;font-size:17px;color:var(--theme-deep);margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+#reportDoc h3.sec::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--theme)}
+#reportDoc h4.part{font-family:'Fraunces';font-weight:500;font-size:16px;color:#2f2e29;margin:16px 0 6px;background:#f4f1e8;border-left:3px solid var(--theme);padding:7px 10px;border-radius:0 6px 6px 0}
+#reportDoc table.kv{width:100%;border-collapse:collapse;margin:2px 0 6px}
+#reportDoc table.kv td{padding:5px 8px;font-size:13px;vertical-align:top;border-bottom:1px solid #eee9dc}
+#reportDoc table.kv td.k{color:var(--ink-soft);width:42%;font-family:'Fraunces';font-size:12px}
+#reportDoc table.kv td.v{color:#2f2e29}
+#reportDoc .imgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px}
+#reportDoc .imgs figure{margin:0;border:1px solid #eee9dc;border-radius:8px;overflow:hidden}
+#reportDoc .imgs img{width:100%;display:block;object-fit:cover;max-height:230px}
+#reportDoc .imgs figcaption{font-size:11px;color:var(--ink-soft);padding:5px 7px;font-style:italic}
+#reportDoc .empty{font-size:13px;color:#b6ae98;font-style:italic;padding:6px 0}
+#reportDoc .foot{padding:16px 30px 26px;border-top:1px solid #eee9dc;font-size:11px;color:var(--ink-soft);text-align:center;font-family:'Fraunces'}
+
+@media print{
+  body *{visibility:hidden}
+  .report,.report *{visibility:visible}
+  .report{position:absolute;inset:auto;display:block;background:#fff;overflow:visible}
+  .report-bar{display:none}
+  .report-scroll{padding:0;max-width:none}
+  #reportDoc{box-shadow:none;border-radius:0}
+  #reportDoc .mod-block{page-break-inside:auto}
+  #reportDoc h2.mod{page-break-after:avoid}
+  #reportDoc h4.part,#reportDoc h3.sec{page-break-after:avoid}
+  #reportDoc .imgs figure,#reportDoc table.kv tr{page-break-inside:avoid}
+  #reportDoc .cover{page-break-after:always}
+  .mod-block{page-break-before:always}
+}
+
+/* tabbar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(242,240,232,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding:8px 0 calc(8px + env(safe-area-inset-bottom));display:flex;justify-content:space-around}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Fraunces';font-size:10px;letter-spacing:.06em;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:4px 14px;transition:.15s}
+.tab svg{width:22px;height:22px}
+.tab.active{color:var(--theme)}
+.tab:active{transform:scale(.92)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ======= TOPBAR ======= -->
+  <div class="topbar" id="topbar">
+    <span class="status offline" id="status"><span class="dot"></span><span id="statusText">Offline · bereit</span></span>
+    <span class="savestate" id="saveState" title="Speicherstatus">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7M8 14h8v6H8z"/></svg>
+      <span id="saveStateText">Bereit</span>
+    </span>
+  </div>
+
+  <!-- ======= HOME VIEW ======= -->
+  <section class="view active" id="view-home">
+    <div class="hero">
+      <svg class="mark" viewBox="0 0 30 42" fill="none"><path d="M15 1C7 12 3 22 3 30a12 12 0 0 0 24 0c0-8-4-18-12-29Z" fill="var(--theme)" opacity=".9"/><path d="M15 6v32" stroke="var(--bg)" stroke-width="1.4" opacity=".5"/></svg>
+      <div class="logo">L<span class="i">a</span>czy<span class="togo">ToGo</span></div>
+      <div class="kicker">Baustellenaufnahme · Vor Ort</div>
+      <p class="lede"><b>Aufnehmen, nicht abtippen.</b> Modulare Datenaufnahme für Gebäudeenergieberatung — offline, mit Fotos & Skizzen. Am Ende: ein sauberes PDF.</p>
+    </div>
+    <div class="divider"><span>Module</span></div>
+    <div class="grid" id="grid"></div>
+    <div class="foot">Laczy ToGo · v0.2 · Stammdaten aktiv</div>
+  </section>
+
+  <!-- ======= MODULE VIEW ======= -->
+  <section class="view" id="view-module">
+    <div class="mod-head">
+      <button class="backbtn" id="backBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"/></svg>
+        Alle Module
+      </button>
+      <h2 class="mod-title" id="modTitle">Stammdaten</h2>
+      <p class="mod-sub" id="modSub"></p>
+      <div class="mod-meta">
+        <div class="metabar"><i id="metaFill"></i></div>
+        <span class="metapct" id="metaPct">0 %</span>
+      </div>
+    </div>
+    <div class="acc" id="acc"></div>
+    <div class="foot" id="modFoot">Eingaben werden automatisch gehalten.</div>
+  </section>
+
+</div>
+
+<!-- ======= SAVE BAR (module) ======= -->
+<div class="savebar" id="savebar">
+  <div class="inner">
+    <button class="btn btn-ghost" id="saveResetView">Zurück</button>
+    <button class="btn btn-primary" id="saveBtn">Speichern</button>
+  </div>
+</div>
+
+<!-- ======= TAB BAR (home) ======= -->
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" id="tabHome"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Start</button>
+  <button class="tab" id="tabCapture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16v14H4z"/><path d="M4 9h16"/><path d="M8 5v14"/></svg>Aufnahme</button>
+  <button class="tab" id="tabReport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>Bericht</button>
+  <button class="tab" id="tabMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1L16 3H8l-.8 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.5L3.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1L8 21h8l.8-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5a7 7 0 0 0 .1-1Z"/></svg>Mehr</button>
+</nav>
+
+<!-- Installations-Hinweis (erscheint wenn installierbar) -->
+<div class="install-bar" id="installBar">
+  <span class="ii"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v12M7 11l5 4 5-4M5 21h14"/></svg></span>
+  <span class="it"><b>Laczy ToGo installieren</b><span>Als App auf den Startbildschirm</span></span>
+  <button id="installBtn">Installieren</button>
+  <button class="x" id="installDismiss" aria-label="Schließen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+
+<!-- versteckte Datei-Inputs für Kamera & Galerie -->
+<input type="file" id="fileCamera" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="fileGallery" accept="image/*" multiple style="display:none">
+
+<!-- Foto-Großansicht (Lightbox) -->
+<div class="lightbox" id="lightbox">
+  <div class="lb-bar">
+    <button id="lbClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button id="lbDelete" aria-label="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+  </div>
+  <div class="lb-img"><img id="lbImg" alt="Foto"></div>
+  <div class="lb-cap"><input type="text" id="lbCap" placeholder="Bildunterschrift hinzufügen …"></div>
+</div>
+
+<!-- Hintergrund-Auswahl für neue Skizze -->
+<div class="bg-choice" id="bgChoice">
+  <div class="bg-sheet">
+    <h3>Neue Skizze</h3>
+    <p>Worauf möchtest du zeichnen?</p>
+    <button class="bg-opt" id="bgBlank">
+      <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h14v18H5z"/></svg></span>
+      <span><b>Leere Fläche</b><span>Weißes Blatt zum freien Zeichnen</span></span>
+    </button>
+    <button class="bg-opt" id="bgPhoto">
+      <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h18v14H3z"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="8" cy="9" r="1.4"/></svg></span>
+      <span><b>Foto als Hintergrund</b><span>Kamera oder Galerie — darauf skizzieren</span></span>
+    </button>
+    <button class="bg-cancel" id="bgCancel">Abbrechen</button>
+  </div>
+</div>
+<input type="file" id="sketchBgFile" accept="image/*" style="display:none">
+
+<!-- Skizzen-Editor (Vollbild) -->
+<div class="sketch-ed" id="sketchEd">
+  <div class="se-bar">
+    <button class="se-btn" id="seCancel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>Abbrechen</button>
+    <div style="display:flex;gap:8px">
+      <button class="se-btn icon" id="seUndo" title="Rückgängig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg></button>
+      <button class="se-btn primary" id="seSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 13l4 4L19 7"/></svg>Fertig</button>
+    </div>
+  </div>
+  <div class="se-canvas-wrap" id="seWrap">
+    <img id="seBgImg" style="display:none" alt="">
+    <canvas id="seCanvas"></canvas>
+  </div>
+  <div class="se-tools">
+    <div class="se-row" id="seColors"></div>
+    <div class="se-row">
+      <div class="se-sizes" id="seSizes"></div>
+      <div class="se-divider"></div>
+      <button class="se-tool on" id="seToolPen" title="Stift"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21l4-1 11-11-3-3L4 17z"/><path d="M14 6l3 3"/></svg></button>
+      <button class="se-tool" id="seToolErase" title="Radierer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16l9-9 7 7-5 5H8z"/><path d="M14 22H6"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- Bericht / PDF-Export -->
+<div class="report" id="report">
+  <div class="report-bar">
+    <button class="se-btn" id="reportClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"/></svg>Zurück</button>
+    <button class="se-btn primary" id="reportPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/></svg>Als PDF speichern</button>
+  </div>
+  <div class="report-scroll"><div id="reportDoc"></div></div>
+</div>
+
+<script>
+/* =========================================================
+   LACZY TOGO — Datenmodell + Module
+   ========================================================= */
+let DATA = { stammdaten: {}, 'oberer-abschluss': { _parts: [] }, 'wand': { _parts: [] }, 'grund': { _parts: [] }, 'anlagentechnik': { _parts: [] }, 'lueftung-pv': { _parts: [] } };
+
+/* =========================================================
+   PERSISTENZ — IndexedDB (Geräte-Speicher, offline, große Daten)
+   Eine laufende Aufnahme, Auto-Save mit sichtbarem Status.
+   ========================================================= */
+const STORE = (()=> {
+  const DB='laczy_togo', VER=1, KEY='current';
+  let db=null, available=true;
+  function open(){
+    return new Promise((res)=>{
+      try{
+        if(!('indexedDB' in window)){ available=false; return res(null); }
+        const rq=indexedDB.open(DB,VER);
+        rq.onupgradeneeded=e=>{ const x=e.target.result; if(!x.objectStoreNames.contains('aufnahme')) x.createObjectStore('aufnahme'); };
+        rq.onsuccess=e=>{ db=e.target.result; res(db); };
+        rq.onerror=()=>{ available=false; res(null); };
+      }catch(e){ available=false; res(null); }
+    });
+  }
+  async function save(obj){
+    if(!available) return false;
+    if(!db) await open();
+    if(!db) return false;
+    return new Promise(res=>{
+      try{
+        const tx=db.transaction('aufnahme','readwrite');
+        tx.objectStore('aufnahme').put({data:obj, ts:Date.now()}, KEY);
+        tx.oncomplete=()=>res(true);
+        tx.onerror=()=>res(false);
+      }catch(e){ res(false); }
+    });
+  }
+  async function load(){
+    if(!available) return null;
+    if(!db) await open();
+    if(!db) return null;
+    return new Promise(res=>{
+      try{
+        const tx=db.transaction('aufnahme','readonly');
+        const rq=tx.objectStore('aufnahme').get(KEY);
+        rq.onsuccess=()=>res(rq.result||null);
+        rq.onerror=()=>res(null);
+      }catch(e){ res(null); }
+    });
+  }
+  async function clear(){
+    if(!available||!db) return;
+    try{ const tx=db.transaction('aufnahme','readwrite'); tx.objectStore('aufnahme').delete(KEY); }catch(e){}
+  }
+  return {open,save,load,clear,isAvailable:()=>available};
+})();
+
+/* ---- Auto-Save mit Status-Anzeige ---- */
+let _saveTimer=null, _lastSaved=null, _relTimer=null;
+function setSaveState(state, text){
+  const el=document.getElementById('saveState'), t=document.getElementById('saveStateText');
+  if(!el) return;
+  el.classList.remove('saving','saved');
+  if(state) el.classList.add(state);
+  const icon=el.querySelector('svg');
+  if(state==='saving'){ icon.classList.add('spin'); } else { icon.classList.remove('spin'); }
+  t.textContent=text;
+}
+function scheduleSave(){
+  if(!STORE.isAvailable()){ setSaveState('', 'Nur diese Sitzung'); return; }
+  setSaveState('saving','Speichert …');
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{
+    const ok=await STORE.save(DATA);
+    if(ok){ _lastSaved=Date.now(); updateRelTime(); }
+    else setSaveState('', 'Nur diese Sitzung');
+  }, 800);
+}
+function updateRelTime(){
+  if(!_lastSaved) return;
+  const s=Math.round((Date.now()-_lastSaved)/1000);
+  let txt;
+  if(s<5) txt='Gespeichert';
+  else if(s<60) txt='Gespeichert vor '+s+' Sek.';
+  else { const m=Math.round(s/60); txt='Gespeichert vor '+m+' Min.'; }
+  setSaveState('saved', txt);
+}
+setInterval(()=>{ if(_lastSaved) updateRelTime(); }, 15000);
+
+/* beim Start: vorhandene Aufnahme laden */
+async function initStore(){
+  await STORE.open();
+  if(!STORE.isAvailable()){ setSaveState('', 'Nur diese Sitzung'); return; }
+  const rec=await STORE.load();
+  if(rec && rec.data){
+    // geladene Daten ins Modell übernehmen (Struktur absichern)
+    DATA = Object.assign({ stammdaten:{}, 'oberer-abschluss':{_parts:[]}, 'wand':{_parts:[]}, 'grund':{_parts:[]}, 'anlagentechnik':{_parts:[]}, 'lueftung-pv':{_parts:[]} }, rec.data);
+    ['oberer-abschluss','wand','grund','anlagentechnik','lueftung-pv'].forEach(k=>{ if(!DATA[k]||!Array.isArray(DATA[k]._parts)) DATA[k]={_parts:[]}; });
+    _lastSaved=rec.ts||Date.now();
+    updateRelTime();
+    renderHome();
+  } else {
+    setSaveState('', 'Bereit');
+  }
+}
+
+/* ---- Modul-Liste der Startseite ---- */
+const MODULES = [
+  {id:'stammdaten', title:'Stammdaten', desc:'Eigentümer, Nutzung & Gebäudeangaben — Teil A & B.', status:'ready',
+   icon:'<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/>'},
+  {id:'oberer-abschluss', title:'Oberer Gebäudeabschluss', desc:'Dach, oberste Geschossdecke, Gauben & Dachflächen.', status:'ready',
+   icon:'<path d="M3 12 12 4l9 8"/><path d="M5 11v9h14v-9"/>'},
+  {id:'wand', title:'Wand & Fassade', desc:'Außenwand, Dämmung, Fenster, Rollladenkästen.', status:'ready',
+   icon:'<path d="M3 6h18v12H3z"/><path d="M3 10h18M3 14h18M9 6v4M15 10v4M9 14v4"/>'},
+  {id:'grund', title:'Grund & Keller', desc:'Bodenplatte, Kellerdecke, erdberührte Bauteile.', status:'ready',
+   icon:'<path d="M3 8h18v12H3z"/><path d="M3 8 12 3l9 5"/>'},
+  {id:'anlagentechnik', title:'Anlagentechnik', desc:'Wärmeerzeugung, Speicher, Verteilung, Pumpen.', status:'ready',
+   icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'},
+  {id:'lueftung-pv', title:'Lüftung & PV', desc:'Lüftungsanlage, Wärmerückgewinnung, Photovoltaik.', status:'ready',
+   icon:'<path d="M4 8h10a3 3 0 1 0-3-3"/><path d="M4 12h14a3 3 0 1 1-3 3"/><path d="M4 16h8a2 2 0 1 1-2 2"/>'},
+];
+
+/* ---- Stammdaten-Modul: kuratierte Kernfelder aus Teil A & B ----
+   Feldtypen: text | num | tel | email | year | select | chips | multi | yesno | note
+*/
+const STAMMDATEN = {
+  kind:'form',
+  title:'Stammdaten',
+  sub:'Kompakte Kernaufnahme nach Teil A & B der Dena-Checkliste.',
+  sections:[
+    { id:'eigentuemer', title:'Eigentümer', icon:'<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+      fields:[
+        {k:'name', label:'Name Eigentümer', type:'text'},
+        {k:'strasse', label:'Straße, Hausnummer', type:'text'},
+        {k:'plzort', label:'PLZ, Ort', type:'text'},
+        {k:'tel', label:'Telefon', type:'tel', half:true},
+        {k:'email', label:'E-Mail', type:'email', half:true},
+      ]},
+    { id:'nutzung', title:'Nutzung', icon:'<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>',
+      fields:[
+        {k:'bewohner', label:'Anzahl Bewohner', type:'num', half:true},
+        {k:'anwesenheit', label:'Tägl. Anwesenheit (Std.)', type:'num', half:true},
+        {k:'kinder', label:'Familie mit Kindern', type:'yesno'},
+        {k:'alter_kinder', label:'Alter der Kinder', type:'text', showIf:{k:'kinder', val:'Ja'}},
+        {k:'ww_verbrauch', label:'Warmwasserverbrauch', type:'chips', opts:['Hoch','Mittel','Gering']},
+        {k:'raumtemp', label:'Raumtemperatur normal beheizt (°C)', type:'num'},
+        {k:'lueftung', label:'Lüftungsverhalten', type:'chips', opts:['Stoßlüftung','Kipplüftung','Dauerlüftung','Lüftungsanlage']},
+      ]},
+    { id:'gebaeude', title:'Gebäude', icon:'<path d="M3 21h18M6 21V5h12v16M9 9h2M13 9h2M9 13h2M13 13h2"/>',
+      fields:[
+        {k:'g_strasse', label:'Straße, Hausnummer (Objekt)', type:'text'},
+        {k:'g_plzort', label:'PLZ, Ort (Objekt)', type:'text'},
+        {k:'kategorie', label:'Gebäudekategorie', type:'select', opts:['EFH','MFH','Reihenmittelhaus','Reihenendhaus','Doppelhaushälfte','Sonstiges']},
+        {k:'baujahr', label:'Baujahr Gebäude', type:'year', half:true},
+        {k:'bj_technik', label:'Baujahr Anlagentechnik', type:'year', half:true},
+        {k:'vollgeschosse', label:'Anzahl Vollgeschosse', type:'num', half:true},
+        {k:'wohnungen', label:'Anzahl Wohnungen', type:'num', half:true},
+        {k:'wohnflaeche', label:'Wohnfläche (m²)', type:'num', half:true},
+        {k:'gewerbeflaeche', label:'Gewerbefläche (m²)', type:'num', half:true},
+        {k:'belegung', label:'Belegung', type:'chips', opts:['Selbstgenutzt','Vermietet','Leerstand']},
+      ]},
+    { id:'rahmen', title:'Randbedingungen', icon:'<path d="M12 3l9 4v6c0 5-4 8-9 9-5-1-9-4-9-9V7l9-4Z"/>',
+      fields:[
+        {k:'denkmal', label:'Denkmalschutz / -auflagen bekannt?', type:'yesno'},
+        {k:'denkmal_txt', label:'Welche?', type:'text', showIf:{k:'denkmal', val:'Ja'}},
+        {k:'brandschutz', label:'Brandschutzrechtliche Auflagen?', type:'yesno'},
+        {k:'erhaltenswert', label:'Erhaltenswerte Elemente?', type:'yesno'},
+        {k:'foerderung', label:'Förderbedingungen berücksichtigen?', type:'yesno'},
+        {k:'budget', label:'Geplantes Budget (€)', type:'num'},
+      ]},
+    { id:'massnahmen', title:'Bisherige Maßnahmen', icon:'<path d="M4 20h16M6 16l4-8 3 5 2-3 3 6"/>',
+      fields:[
+        {k:'m_dach', label:'Dach / oberste Geschossdecke', type:'note', ph:'Jahr, Dämmstärke, Material, WLS …'},
+        {k:'m_fassade', label:'Fassade / Außenwand', type:'note', ph:'Jahr, Dämmstärke, Material, WLS …'},
+        {k:'m_fenster', label:'Fenster', type:'note', ph:'Jahr, Verglasung, Material …'},
+        {k:'m_keller', label:'Kellerdecke / Bodenplatte', type:'note', ph:'Jahr, Dämmstärke, Material, WLS …'},
+        {k:'m_technik', label:'Anlagentechnik (Heizung/WW)', type:'note', ph:'Jahr, Typ, Effizienz …'},
+      ]},
+    { id:'planung', title:'Planung & Unterlagen', icon:'<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6"/>',
+      fields:[
+        {k:'geplant', label:'Geplante Maßnahmen', type:'multi', opts:['Instandsetzung','Modernisierung','Umbau/Erweiterung','Altersgerecht','Bad/Wellness','Nutzungsänderung']},
+        {k:'unterlagen', label:'Vorliegende Planunterlagen', type:'multi', opts:['Lageplan','Grundrisse','Schnitte','Ansichten','Baubeschreibung','Heizkostenabr.','Schornsteinfeger']},
+        {k:'luftdicht', label:'Luftdichtheit gemessen?', type:'yesno'},
+        {k:'thermografie', label:'Thermografie vorhanden?', type:'yesno'},
+        {k:'smarthome', label:'Smart-Home', type:'chips', opts:['Vorhanden','Geplant','Nein']},
+        {k:'bemerkungen', label:'Allgemeine Bemerkungen', type:'note', ph:'Freie Notizen zur Aufnahme …'},
+      ]},
+  ]
+};
+
+/* ---- Bauteil-Modul: Oberer Gebäudeabschluss (Teil C) ----
+   kind:'parts' → mehrere Bauteil-Instanzen. Jeder Typ hat eigene Felder.
+   Neue Feldtypen: photo | sketch (Platzhalter, Funktion folgt)
+*/
+const OBERER_ABSCHLUSS = {
+  kind:'parts',
+  title:'Oberer Gebäudeabschluss',
+  sub:'Dach, oberste Geschossdecke & Gauben. Pro Bauteil eine Karte anlegen.',
+  addLabel:'Bauteil hinzufügen',
+  emptyHint:'Noch kein Bauteil erfasst.<br>Tippe auf „Bauteil hinzufügen", um eine Dachfläche, oberste Geschossdecke oder Gaube aufzunehmen.',
+  // gemeinsame Felder, die jede Instanz unten bekommt (Foto/Skizze/Notiz)
+  commonFields:[
+    {k:'_foto', label:'Fotos', type:'photo'},
+    {k:'_skizze', label:'Skizze', type:'sketch'},
+    {k:'bemerkung', label:'Bemerkungen', type:'note', ph:'Auffälligkeiten, Anschlüsse, Schäden …'},
+  ],
+  types:[
+    { id:'schraegdach', label:'Schrägdach (beheizt)', icon:'<path d="M3 12 12 4l9 8"/><path d="M5 11v9h14v-9"/>',
+      fields:[
+        {k:'beheizt', label:'Beheizung', type:'chips', opts:['Vollständig','Teilweise','Unbeheizt']},
+        {k:'dachflaeche', label:'Dachfläche (m²)', type:'num', half:true},
+        {k:'neigung', label:'Neigung (°)', type:'num', half:true},
+        {k:'ausrichtung', label:'Ausrichtung', type:'chips', opts:['Nord','Ost','Süd','West','NO','NW','SO','SW']},
+        {k:'aufbau', label:'Material / Bauteilaufbau', type:'text'},
+        {k:'sparren', label:'Sparren b/h (cm)', type:'text', half:true},
+        {k:'sparrenabstand', label:'Sparrenabstand (cm)', type:'num', half:true},
+        {k:'daemmung', label:'Nachträgliche Dämmung?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'luftdicht', label:'Luftdichte Ebene vorhanden?', type:'yesno'},
+        {k:'unterdach', label:'Unterdach vorhanden?', type:'yesno'},
+        {k:'innenverkleidung', label:'Innenverkleidung', type:'text'},
+        {k:'zustand', label:'Zustand Dacheindeckung', type:'chips', opts:['Sehr gut','Gut','Schlecht','Prüfen']},
+        {k:'pv_geeignet', label:'Für PV/Solar geeignet?', type:'yesno'},
+      ]},
+    { id:'flachdach', label:'Flachdach', icon:'<path d="M3 8h18v3H3z"/><path d="M5 11v8h14v-8"/>',
+      fields:[
+        {k:'beheizt', label:'Beheizung', type:'chips', opts:['Vollständig','Teilweise','Unbeheizt']},
+        {k:'dachflaeche', label:'Dachfläche (m²)', type:'num', half:true},
+        {k:'gefaelle', label:'Gefälle (%)', type:'num', half:true},
+        {k:'aufbau', label:'Material / Bauteilaufbau', type:'text'},
+        {k:'abdichtung', label:'Abdichtung (Art)', type:'text'},
+        {k:'genutzt', label:'Genutztes Dach?', type:'chips', opts:['Nicht genutzt','Begehbar','Begrünt','Terrasse']},
+        {k:'daemmung', label:'Dämmung vorhanden?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'zustand', label:'Zustand', type:'chips', opts:['Sehr gut','Gut','Schlecht','Prüfen']},
+        {k:'pv_geeignet', label:'Für PV/Solar geeignet?', type:'yesno'},
+      ]},
+    { id:'obg-decke', label:'Oberste Geschossdecke', icon:'<path d="M3 7h18M3 12h18M3 17h18"/>',
+      fields:[
+        {k:'flaeche', label:'Deckenfläche (m²)', type:'num', half:true},
+        {k:'staerke', label:'Deckenstärke (cm)', type:'num', half:true},
+        {k:'ausfuehrung', label:'Material / Ausführung', type:'select', opts:['Holzbalkendecke','Stahlbetondecke','Ziegeldecke','Kappendecke','Sonstige']},
+        {k:'darueber', label:'Darüberliegender Raum', type:'chips', opts:['Unbeheizter Spitzboden','Kaltdach','Außenluft']},
+        {k:'begehbar', label:'Begehbar?', type:'yesno'},
+        {k:'daemmung', label:'Nachträgliche Dämmung?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_jahr', label:'Jahr des Einbaus', type:'year', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'ausbau_geplant', label:'Innenausbau geplant?', type:'yesno'},
+      ]},
+    { id:'gaube', label:'Gaube', icon:'<path d="M3 18 8 9l4 4 4-7 5 12z"/>',
+      fields:[
+        {k:'bauart', label:'Gaubenart', type:'select', opts:['Schleppgaube','Satteldachgaube','Walmdachgaube','Flachdachgaube','Fledermausgaube','Sonstige']},
+        {k:'anzahl', label:'Anzahl gleichartig', type:'num', half:true},
+        {k:'breite', label:'Breite (m)', type:'num', half:true},
+        {k:'front_flaeche', label:'Frontfläche (m²)', type:'num', half:true},
+        {k:'wangen_flaeche', label:'Wangenfläche je Seite (m²)', type:'num', half:true},
+        {k:'aufbau', label:'Material / Aufbau', type:'text'},
+        {k:'daemmung', label:'Dämmung vorhanden?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'fenster', label:'Fenster in Gaube?', type:'yesno'},
+        {k:'zustand', label:'Zustand', type:'chips', opts:['Sehr gut','Gut','Schlecht','Prüfen']},
+      ]},
+  ]
+};
+
+/* ---- Bauteil-Modul: Wand & Fassade (Teil C) ---- */
+const WAND = {
+  kind:'parts',
+  title:'Wand & Fassade',
+  sub:'Außenwand, Fenster, Rollladenkästen & Haustür. Pro Bauteil eine Karte anlegen.',
+  addLabel:'Bauteil hinzufügen',
+  emptyHint:'Noch kein Bauteil erfasst.<br>Tippe auf „Bauteil hinzufügen", um eine Außenwand, ein Fenster, Rollladenkästen oder die Haustür aufzunehmen.',
+  commonFields:[
+    {k:'_foto', label:'Fotos', type:'photo'},
+    {k:'_skizze', label:'Skizze', type:'sketch'},
+    {k:'bemerkung', label:'Bemerkungen', type:'note', ph:'Auffälligkeiten, Wärmebrücken, Schäden …'},
+  ],
+  types:[
+    { id:'aussenwand', label:'Außenwand / Fassade', icon:'<path d="M3 5h18v14H3z"/><path d="M3 9h18M3 13h18M8 5v4M14 9v4M8 13v4"/>',
+      fields:[
+        {k:'orientierung', label:'Ausrichtung / Lage', type:'chips', opts:['Nord','Ost','Süd','West','Alle','Sonstige']},
+        {k:'flaeche', label:'Wandfläche (m²)', type:'num', half:true},
+        {k:'wandstaerke', label:'Wandstärke (cm)', type:'num', half:true},
+        {k:'fassadentyp', label:'Fassadentyp', type:'chips', opts:['Sichtmauerwerk','Außenputz/Anstrich','Vorgehängt','Verklinkert']},
+        {k:'material', label:'Material / Aufbau', type:'text', ph:'z.B. Ziegel, Beton, Hohlblock …'},
+        {k:'daemmung', label:'Dämmung vorhanden?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_jahr', label:'Jahr des Einbaus', type:'year', showIf:{k:'daemmung',val:'Ja'}},
+        {k:'heizungsnische', label:'Heizungsnischen vorhanden?', type:'yesno'},
+        {k:'zustand', label:'Zustand', type:'chips', opts:['Sehr gut','Gut','Schlecht','Prüfen']},
+        {k:'schaeden', label:'Schäden / Auffälligkeiten', type:'multi', opts:['Keine','Feuchtigkeit','Risse','Wärmebrücken','Putzschäden']},
+        {k:'restriktion', label:'Restriktion für Außendämmung?', type:'multi', opts:['Keine','Grenzbebauung','Dachüberstand','Denkmalschutz','Erker/Vorsprünge']},
+      ]},
+    { id:'wand-unbeheizt', label:'Wand zu unbeheizt', icon:'<path d="M3 5h18v14H3z"/><path d="M12 5v14"/><path d="M6 9h3M15 13h3"/>',
+      fields:[
+        {k:'grenzt_an', label:'Grenzt an', type:'chips', opts:['Unbeheizter Keller','Treppenhaus','Garage','Nebengebäude','Sonstiges']},
+        {k:'flaeche', label:'Wandfläche (m²)', type:'num', half:true},
+        {k:'wandstaerke', label:'Wandstärke (cm)', type:'num', half:true},
+        {k:'material', label:'Material / Aufbau', type:'text'},
+        {k:'daemmung', label:'Dämmung vorhanden?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'zustand', label:'Zustand Innenputz/-verkleidung', type:'chips', opts:['Sehr gut','Gut','Schlecht','Prüfen']},
+      ]},
+    { id:'fenster', label:'Fenster', icon:'<path d="M4 3h16v18H4z"/><path d="M12 3v18M4 12h16"/>',
+      fields:[
+        {k:'bezeichnung_hint', label:'Tipp: Bei mehreren Fenstertypen je Typ ein Bauteil anlegen.', type:'info'},
+        {k:'anzahl', label:'Anzahl gleichartig', type:'num', half:true},
+        {k:'baujahr', label:'Baujahr Fenster', type:'year', half:true},
+        {k:'material', label:'Rahmenmaterial', type:'select', opts:['Holz','Kunststoff','Aluminium','Holz-Alu','Stahl','Sonstige']},
+        {k:'verglasung', label:'Verglasungsart', type:'chips', opts:['Einfach','Doppelt (ISO)','Dreifach','Kasten','Verbund']},
+        {k:'ug_wert', label:'Ug-Wert (W/m²K)', type:'num', half:true},
+        {k:'gesamtflaeche', label:'Gesamtfläche (m²)', type:'num', half:true},
+        {k:'zustand_rahmen', label:'Zustand Rahmen', type:'chips', opts:['Sehr gut','Gut','Schlecht']},
+        {k:'undicht', label:'Undichtigkeiten?', type:'yesno'},
+        {k:'laibungsdaemmung', label:'Laibungsdämmung möglich?', type:'yesno'},
+        {k:'erneuerung', label:'Erneuerung geplant/nötig?', type:'yesno'},
+      ]},
+    { id:'rollladen', label:'Rollladenkästen', icon:'<path d="M4 4h16v4H4z"/><path d="M5 8v12M19 8v12M5 20h14"/><path d="M8 11h8M8 14h8M8 17h8"/>',
+      fields:[
+        {k:'anzahl', label:'Anzahl', type:'num', half:true},
+        {k:'lage', label:'Lage', type:'chips', opts:['Vor der Fassade','Im Sturzbereich']},
+        {k:'gedaemmt', label:'Gedämmt?', type:'yesno'},
+        {k:'daemmung_moeglich', label:'Dämmung möglich?', type:'yesno'},
+        {k:'zustand', label:'Zustand', type:'chips', opts:['Sehr gut','Gut','Schlecht']},
+      ]},
+    { id:'haustuer', label:'Haustür / Eingang', icon:'<path d="M6 3h12v18H6z"/><path d="M14 12h.5"/>',
+      fields:[
+        {k:'anzahl', label:'Anzahl', type:'num', half:true},
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'material', label:'Material', type:'select', opts:['Holz','Kunststoff','Aluminium','Stahl','Glas','Sonstige']},
+        {k:'verglast', label:'Verglasungsanteil', type:'chips', opts:['Keine','Teilweise','Überwiegend']},
+        {k:'gedaemmt', label:'Gedämmt / wärmegedämmt?', type:'yesno'},
+        {k:'zustand', label:'Zustand', type:'chips', opts:['Sehr gut','Gut','Schlecht']},
+        {k:'undicht', label:'Undichtigkeiten?', type:'yesno'},
+        {k:'erneuerung', label:'Erneuerung geplant/nötig?', type:'yesno'},
+      ]},
+  ]
+};
+
+/* ---- gemeinsame Felder für alle Bauteil-Module ---- */
+const COMMON_FIELDS = [
+  {k:'_foto', label:'Fotos', type:'photo'},
+  {k:'_skizze', label:'Skizze', type:'sketch'},
+  {k:'bemerkung', label:'Bemerkungen', type:'note', ph:'Auffälligkeiten, Schäden, Hinweise …'},
+];
+
+/* ---- Bauteil-Modul: Grund & Keller (Teil C) ---- */
+const GRUND = {
+  kind:'parts',
+  title:'Grund & Keller',
+  sub:'Bodenplatte, Kellerdecke, Kellerwände & erdberührte Bauteile. Pro Bauteil eine Karte.',
+  addLabel:'Bauteil hinzufügen',
+  emptyHint:'Noch kein Bauteil erfasst.<br>Tippe auf „Bauteil hinzufügen", um Bodenplatte, Kellerdecke oder Kellerwand aufzunehmen.',
+  commonFields:COMMON_FIELDS,
+  types:[
+    { id:'bodenplatte', label:'Bodenplatte / Fußboden an Erdreich', icon:'<path d="M3 14h18v6H3z"/><path d="M3 14l9-6 9 6"/>',
+      fields:[
+        {k:'flaeche', label:'Fläche (m²)', type:'num', half:true},
+        {k:'staerke', label:'Bauteilstärke (cm)', type:'num', half:true},
+        {k:'ausfuehrung', label:'Material / Ausführung', type:'text'},
+        {k:'daemmung', label:'Nachträgliche Dämmung?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'feuchte', label:'Feuchteschäden?', type:'yesno'},
+        {k:'risse', label:'Risse?', type:'yesno'},
+      ]},
+    { id:'kellerdecke', label:'Kellerdecke', icon:'<path d="M3 9h18M3 9l3-4h12l3 4M5 9v11h14V9"/>',
+      fields:[
+        {k:'beheizung', label:'Keller darunter', type:'chips', opts:['Unbeheizt','Teilbeheizt','Beheizt']},
+        {k:'flaeche', label:'Deckenfläche (m²)', type:'num', half:true},
+        {k:'staerke', label:'Deckenstärke (cm)', type:'num', half:true},
+        {k:'bauart', label:'Deckenart', type:'select', opts:['Holzbalkendecke','Stahlbetondecke','Ziegeldecke','Kappendecke','Sonstige']},
+        {k:'daemmung', label:'Nachträgliche Dämmung?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'raumhoehe', label:'Lichte Raumhöhe Keller (m)', type:'num'},
+        {k:'feuchte', label:'Feuchteschäden?', type:'yesno'},
+      ]},
+    { id:'kellerwand', label:'Kelleraußenwand', icon:'<path d="M4 4h16v16H4z"/><path d="M4 12h16M12 4v16"/>',
+      fields:[
+        {k:'flaeche', label:'Wandfläche (m²)', type:'num', half:true},
+        {k:'wandstaerke', label:'Wandstärke (cm)', type:'num', half:true},
+        {k:'material', label:'Material', type:'text'},
+        {k:'erdberuehrt', label:'Erdberührt?', type:'yesno'},
+        {k:'daemmung', label:'Dämmung vorhanden?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'abdichtung', label:'Abdichtung', type:'multi', opts:['Keine','Vertikal','Horizontal']},
+        {k:'feuchte', label:'Feuchteschäden?', type:'yesno'},
+      ]},
+    { id:'decke-aussen', label:'Decke nach außen/Durchfahrt', icon:'<path d="M3 10h18v4H3z"/><path d="M6 14v6M18 14v6"/>',
+      fields:[
+        {k:'flaeche', label:'Deckenfläche (m²)', type:'num', half:true},
+        {k:'staerke', label:'Bauteilstärke (cm)', type:'num', half:true},
+        {k:'ausfuehrung', label:'Material / Ausführung', type:'text'},
+        {k:'grenzt_an', label:'Grenzt an', type:'chips', opts:['Außenluft','Durchfahrt','Unbeheizt']},
+        {k:'daemmung', label:'Nachträgliche Dämmung?', type:'yesno'},
+        {k:'daemm_staerke', label:'Dämmstärke (cm)', type:'num', half:true, showIf:{k:'daemmung',val:'Ja'}},
+        {k:'daemm_wls', label:'WLS', type:'text', half:true, showIf:{k:'daemmung',val:'Ja'}},
+      ]},
+  ]
+};
+
+/* ---- Bauteil-Modul: Anlagentechnik (Teil D, kompakt) ---- */
+const ANLAGENTECHNIK = {
+  kind:'parts',
+  title:'Anlagentechnik',
+  sub:'Wärmeerzeuger, Speicher, Verteilung & Pumpen. Pro Komponente eine Karte (Typenschild fotografieren!).',
+  addLabel:'Komponente hinzufügen',
+  emptyHint:'Noch keine Komponente erfasst.<br>Tippe auf „Komponente hinzufügen", um Wärmeerzeuger, Speicher, Verteilung oder Pumpe aufzunehmen.',
+  commonFields:COMMON_FIELDS,
+  types:[
+    { id:'waermeerzeuger', label:'Wärmeerzeuger', icon:'<path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8"/><circle cx="12" cy="16" r="2"/>',
+      fields:[
+        {k:'bauart', label:'Bauart', type:'select', opts:['Gas-Brennwert','Gas-Niedertemperatur','Öl-Brennwert','Öl-Niedertemperatur','Wärmepumpe Luft','Wärmepumpe Sole','Pelletkessel','Holzkessel','Fern-/Nahwärme','BHKW','Elektro','Sonstige']},
+        {k:'hersteller', label:'Hersteller / Typ', type:'text'},
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'leistung', label:'Nennleistung (kW)', type:'num', half:true},
+        {k:'energietraeger', label:'Energieträger', type:'select', opts:['Erdgas','Flüssiggas','Heizöl','Strom','Pellets','Scheitholz','Fernwärme','Sonstige']},
+        {k:'betrieb', label:'Betriebsweise', type:'chips', opts:['Nur Heizung','Heizung + WW','Nur Warmwasser']},
+        {k:'standort', label:'Standort', type:'chips', opts:['Innerhalb therm. Hülle','Außerhalb therm. Hülle']},
+        {k:'vl_rl', label:'Vor-/Rücklauf (°C)', type:'text', half:true},
+        {k:'effizienz', label:'Effizienzklasse', type:'text', half:true},
+        {k:'erneuerung', label:'Erneuerung geplant/nötig?', type:'yesno'},
+      ]},
+    { id:'speicher', label:'Speicher', icon:'<path d="M7 3h10v18H7z" rx="3"/><path d="M7 8h10M7 16h10"/>',
+      fields:[
+        {k:'bauart', label:'Bauart', type:'select', opts:['Warmwasserspeicher','Pufferspeicher','Kombispeicher','Frischwasserstation','Sonstige']},
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'inhalt', label:'Nenninhalt (Liter)', type:'num', half:true},
+        {k:'betrieb', label:'Betriebsweise', type:'chips', opts:['Nur TWW','Heizung + TWW']},
+        {k:'erwaermung', label:'Erwärmung durch', type:'multi', opts:['Zentraler Erzeuger','Elektroheizstab','Solaranlage']},
+        {k:'standort', label:'Standort', type:'chips', opts:['Innerhalb therm. Hülle','Außerhalb therm. Hülle']},
+        {k:'daemmung', label:'Speicherdämmung', type:'chips', opts:['Keine','Schlecht','Mäßig','Gut']},
+      ]},
+    { id:'verteilung', label:'Verteilung & Heizflächen', icon:'<path d="M4 4v16M4 8h8a4 4 0 0 1 0 8H4"/><path d="M16 4v16M20 4v16"/>',
+      fields:[
+        {k:'verteilart', label:'Verteilart', type:'chips', opts:['Zweirohr','Einrohr','Andere']},
+        {k:'heizflaechen', label:'Heizflächen', type:'multi', opts:['Heizkörper','Fußbodenheizung','Wandheizung','Sonstige']},
+        {k:'lage', label:'Leitungen liegen', type:'chips', opts:['Innerhalb therm. Hülle','Außerhalb therm. Hülle','Gemischt']},
+        {k:'daemmung', label:'Rohrdämmung', type:'chips', opts:['Keine','Teilweise','Vollständig']},
+        {k:'regelung', label:'Regelung', type:'multi', opts:['Thermostatventile','Mit Voreinstellung','Einzelraumregelung','Zeitsteuerung']},
+        {k:'hydraulisch', label:'Hydraulischer Abgleich erfolgt?', type:'yesno'},
+      ]},
+    { id:'solar', label:'Solarthermie', icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+      fields:[
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'kollektorflaeche', label:'Kollektorfläche (m²)', type:'num', half:true},
+        {k:'bauart', label:'Kollektorbauart', type:'select', opts:['Flachkollektor','Röhrenkollektor','Sonstige']},
+        {k:'betrieb', label:'Betriebsweise', type:'chips', opts:['Nur Warmwasser','Heizung + WW']},
+        {k:'standort', label:'Standort / Ausrichtung', type:'text'},
+      ]},
+    { id:'pumpe', label:'Umwälz-/Zirkulationspumpe', icon:'<circle cx="12" cy="12" r="7"/><path d="M12 9v6M9 12h6"/>',
+      fields:[
+        {k:'art', label:'Pumpenart', type:'chips', opts:['Heizung','Warmwasser-Zirkulation']},
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'leistung', label:'El. Leistung (W)', type:'num', half:true},
+        {k:'regelung', label:'Regelung', type:'select', opts:['Ungeregelt/stufig','Elektronisch geregelt','Hocheffizienz (Klasse A)']},
+        {k:'betrieb', label:'Betrieb', type:'chips', opts:['Durchgängig 24h','Zeitgesteuert','Bedarfsabhängig']},
+      ]},
+  ]
+};
+
+/* ---- Bauteil-Modul: Lüftung & PV (Teil D) ---- */
+const LUEFTUNG_PV = {
+  kind:'parts',
+  title:'Lüftung & PV',
+  sub:'Lüftungsanlage, Wärmerückgewinnung & Photovoltaik. Pro Anlage eine Karte.',
+  addLabel:'Anlage hinzufügen',
+  emptyHint:'Noch keine Anlage erfasst.<br>Tippe auf „Anlage hinzufügen", um eine Lüftungsanlage oder PV-Anlage aufzunehmen.',
+  commonFields:COMMON_FIELDS,
+  types:[
+    { id:'lueftung', label:'Lüftungsanlage', icon:'<path d="M4 8h10a3 3 0 1 0-3-3"/><path d="M4 12h14a3 3 0 1 1-3 3"/><path d="M4 16h8a2 2 0 1 1-2 2"/>',
+      fields:[
+        {k:'bauart', label:'Bauart', type:'select', opts:['Abluftanlage','Zu-/Abluft dezentral','Zu-/Abluft zentral']},
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'wrg', label:'Wärmerückgewinnung?', type:'yesno'},
+        {k:'wrg_grad', label:'WRG-Grad (%)', type:'num', half:true, showIf:{k:'wrg',val:'Ja'}},
+        {k:'wrg_typ', label:'WRG-Typ', type:'chips', opts:['Kreuzstrom','Gegenstrom','Mit Feuchteübertragung'], showIf:{k:'wrg',val:'Ja'}},
+        {k:'volumenstrom', label:'Auslegungsvolumenstrom (m³/h)', type:'num'},
+        {k:'betrieb', label:'Betrieb', type:'chips', opts:['Durchgängig 24h','Zeitgesteuert','Bedarfsabhängig']},
+        {k:'ventilator', label:'Ventilator', type:'chips', opts:['Gleichstrom','Wechselstrom']},
+        {k:'lage', label:'Verteilung liegt', type:'chips', opts:['Innerhalb therm. Hülle','Außerhalb therm. Hülle']},
+      ]},
+    { id:'pv', label:'Photovoltaik-Anlage', icon:'<path d="M3 16h18l-2-9H5z"/><path d="M9 7v9M15 7v9M3 16l-1 4h20l-1-4"/>',
+      fields:[
+        {k:'baujahr', label:'Baujahr', type:'year', half:true},
+        {k:'leistung', label:'Leistung (kWp)', type:'num', half:true},
+        {k:'modulflaeche', label:'Modulfläche (m²)', type:'num', half:true},
+        {k:'modulbauart', label:'Modulbauart', type:'text', half:true},
+        {k:'standort', label:'Standort / Ausrichtung', type:'text'},
+        {k:'speicher', label:'Batteriespeicher?', type:'yesno'},
+        {k:'speicher_kwh', label:'Speicherkapazität (kWh)', type:'num', showIf:{k:'speicher',val:'Ja'}},
+        {k:'nutzung', label:'Nutzung', type:'chips', opts:['Überwiegend Eigenverbrauch','Überwiegend Einspeisung','Gemischt']},
+      ]},
+  ]
+};
+
+const MODULE_DEFS = { stammdaten: STAMMDATEN, 'oberer-abschluss': OBERER_ABSCHLUSS, 'wand': WAND, 'grund': GRUND, 'anlagentechnik': ANLAGENTECHNIK, 'lueftung-pv': LUEFTUNG_PV };
+
+/* ============ STATUS / AMPEL ============ */
+function statusOf(pct){ return pct>=100?'done':(pct>0?'part':'empty'); }
+function statusLabel(pct){ return pct>=100?'Fertig':(pct>0?pct+' %':'Offen'); }
+
+/* ============ HOME RENDER ============ */
+const grid = document.getElementById('grid');
+function renderHome(){
+  grid.innerHTML='';
+  MODULES.forEach(m=>{
+    const el=document.createElement('button');
+    const ready=m.status==='ready';
+    const pct = ready ? completion(m.id) : 0;
+    const st = statusOf(pct);
+    el.className='card'+(ready?' st-'+st:' soon');
+    el.innerHTML=`
+      ${ready?'<span class="badge">'+statusLabel(pct)+'</span>':'<span class="badge gray">Bald</span>'}
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${m.icon}</svg></div>
+      <h3>${m.title}</h3>
+      <p>${m.desc}</p>
+      ${ready?'<div class="prog"><i style="width:'+pct+'%"></i></div>':''}`;
+    el.addEventListener('click',()=>{
+      if(m.status==='soon'){shake(el);return;}
+      openModule(m.id);
+    });
+    grid.appendChild(el);
+  });
+}
+function shake(el){el.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:240});}
+
+/* ============ COMPLETION ============ */
+function allKeys(modId){
+  const def=MODULE_DEFS[modId]; let ks=[];
+  def.sections.forEach(s=>s.fields.forEach(f=>{ if(!f.showIf) ks.push(f.k); }));
+  return ks;
+}
+function completion(modId){
+  const def=MODULE_DEFS[modId];
+  if(def.kind==='parts'){
+    const parts=DATA[modId]._parts;
+    if(parts.length===0) return 0;
+    const sum=parts.reduce((a,p)=>a+instanceCompletion(def,p),0);
+    return Math.round(sum/parts.length);
+  }
+  const ks=allKeys(modId), d=DATA[modId]||{};
+  let filled=0;
+  ks.forEach(k=>{ const v=d[k]; if(Array.isArray(v)?v.length:(v!==undefined&&v!=='')) filled++; });
+  return Math.round(filled/ks.length*100);
+}
+/* Fortschritt eines einzelnen Abschnitts (nur sichtbare Felder zählen) */
+function sectionCompletion(modId,sec){
+  const d=DATA[modId]||{};
+  let total=0, filled=0;
+  sec.fields.forEach(f=>{
+    if(f.showIf){ if((d[f.showIf.k])!==f.showIf.val) return; } // ausgeblendete nicht zählen
+    total++;
+    const v=d[f.k];
+    if(Array.isArray(v)?v.length:(v!==undefined&&v!=='')) filled++;
+  });
+  if(total===0) return 0;
+  return Math.round(filled/total*100);
+}
+
+/* ============ MODULE RENDER ============ */
+const acc=document.getElementById('acc');
+let CURRENT=null;
+function openModule(modId){
+  CURRENT=modId;
+  const def=MODULE_DEFS[modId];
+  document.getElementById('modTitle').textContent=def.title;
+  document.getElementById('modSub').textContent=def.sub;
+  acc.innerHTML='';
+  if(def.kind==='parts'){
+    renderParts(modId,def);
+  } else {
+    def.sections.forEach((s,idx)=>acc.appendChild(renderSection(modId,s,idx===0)));
+    updateSectionStatus();
+  }
+  updateMeta();
+  switchView('module');
+}
+
+/* ---- Bauteil-Modul Render (Instanzen) ---- */
+let PART_SEQ = 0;
+function renderParts(modId,def){
+  const list = DATA[modId]._parts;
+  if(list.length===0){
+    const hint=document.createElement('div');
+    hint.className='empty-hint'; hint.innerHTML=def.emptyHint;
+    acc.appendChild(hint);
+  } else {
+    list.forEach((inst,idx)=>acc.appendChild(renderInstance(modId,def,inst,idx)));
+  }
+  const add=document.createElement('button');
+  add.className='add-inst';
+  add.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'+(def.addLabel||'Hinzufügen');
+  add.addEventListener('click',()=>addPart(modId,def));
+  acc.appendChild(add);
+}
+
+function addPart(modId,def){
+  const inst={ _id:'p'+(++PART_SEQ), _type:null };
+  DATA[modId]._parts.push(inst);
+  scheduleSave();
+  openModule(modId); // re-render
+  // open the newly added (last) instance
+  const insts=acc.querySelectorAll('.inst');
+  const last=insts[insts.length-1];
+  if(last){ last.classList.add('open'); const b=last.querySelector('.inst-body'); if(b) requestAnimationFrame(()=>b.style.maxHeight=b.scrollHeight+60+'px'); last.scrollIntoView({behavior:'smooth',block:'center'}); }
+}
+
+function renderInstance(modId,def,inst,idx){
+  const tdef = inst._type ? def.types.find(t=>t.id===inst._type) : null;
+  const el=document.createElement('div');
+  el.className='inst'; el.dataset.pid=inst._id;
+  const pct = tdef ? instanceCompletion(def,inst) : 0;
+  const title = inst.name || (tdef ? tdef.label : 'Neues Bauteil');
+  const sub = tdef ? tdef.label : 'Typ wählen';
+  const icon = tdef ? tdef.icon : '<path d="M12 5v14M5 12h14"/>';
+  el.innerHTML=`
+    <div class="inst-head">
+      <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${icon}</svg></span>
+      <span class="ititle"><b>${title}</b><span>${sub}</span></span>
+      <span class="inst-dot"></span>
+      <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg></span>
+    </div>
+    <div class="inst-body"><div class="inst-inner"></div></div>`;
+  const head=el.querySelector('.inst-head');
+  const body=el.querySelector('.inst-body');
+  const inner=el.querySelector('.inst-inner');
+  buildInstanceInner(modId,def,inst,inner,el);
+  head.addEventListener('click',()=>{
+    el.classList.toggle('open');
+    body.style.maxHeight = el.classList.contains('open') ? body.scrollHeight+60+'px' : '0';
+  });
+  // status dot
+  const st=statusOf(pct);
+  if(st==='part') el.classList.add('sd-part'); if(st==='done') el.classList.add('sd-done');
+  return el;
+}
+
+function buildInstanceInner(modId,def,inst,inner,el){
+  inner.innerHTML='';
+  // 1) Bauteil-Name (frei)
+  const nameField=renderFieldCtx(inst,{k:'name',label:'Bezeichnung (z.B. „Dachfläche Nord")',type:'text',ph:'Bezeichnung'}, ()=>refreshInstance(modId,def,inst,el));
+  inner.appendChild(nameField);
+  // 2) Typ-Auswahl
+  const typeWrap=document.createElement('div'); typeWrap.className='field';
+  typeWrap.innerHTML='<label>Bauteil-Typ</label>';
+  const pick=document.createElement('div'); pick.className='type-pick';
+  def.types.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='chip'+(inst._type===t.id?' on':''); b.textContent=t.label;
+    b.addEventListener('click',()=>{
+      inst._type=t.id;
+      buildInstanceInner(modId,def,inst,inner,el);
+      refreshInstance(modId,def,inst,el);
+      const body=el.querySelector('.inst-body');
+      requestAnimationFrame(()=>body.style.maxHeight=body.scrollHeight+60+'px');
+    });
+    pick.appendChild(b);
+  });
+  typeWrap.appendChild(pick); inner.appendChild(typeWrap);
+  // 3) typ-spezifische Felder
+  const tdef = inst._type ? def.types.find(t=>t.id===inst._type) : null;
+  if(tdef){
+    tdef.fields.forEach(f=>inner.appendChild(renderFieldCtx(inst,f,()=>refreshInstance(modId,def,inst,el))));
+    // 4) gemeinsame Felder (Foto/Skizze/Notiz)
+    def.commonFields.forEach(f=>inner.appendChild(renderFieldCtx(inst,f,()=>refreshInstance(modId,def,inst,el))));
+    // 5) Löschen
+    const del=document.createElement('button'); del.className='inst-del';
+    del.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg> Bauteil löschen';
+    del.addEventListener('click',()=>{
+      if(confirm('Dieses Bauteil wirklich löschen?')){
+        DATA[modId]._parts = DATA[modId]._parts.filter(p=>p._id!==inst._id);
+        scheduleSave();
+        openModule(modId);
+      }
+    });
+    inner.appendChild(del);
+  }
+  applyConditionalCtx(inner,inst);
+}
+
+function refreshInstance(modId,def,inst,el){
+  // update title/sub/dot without full re-render
+  const tdef=inst._type?def.types.find(t=>t.id===inst._type):null;
+  const pct=tdef?instanceCompletion(def,inst):0;
+  const tEl=el.querySelector('.ititle b'), sEl=el.querySelector('.ititle span');
+  if(tEl) tEl.textContent = inst.name || (tdef?tdef.label:'Neues Bauteil');
+  if(sEl) sEl.textContent = tdef?tdef.label:'Typ wählen';
+  el.classList.remove('sd-part','sd-done');
+  const st=statusOf(pct);
+  if(st==='part') el.classList.add('sd-part'); if(st==='done') el.classList.add('sd-done');
+  const inner=el.querySelector('.inst-inner');
+  applyConditionalCtx(inner,inst);
+  const body=el.querySelector('.inst-body');
+  if(el.classList.contains('open')) body.style.maxHeight=body.scrollHeight+60+'px';
+  updateMeta();
+}
+
+/* Fortschritt einer Bauteil-Instanz */
+function instanceCompletion(def,inst){
+  const tdef = inst._type ? def.types.find(t=>t.id===inst._type) : null;
+  if(!tdef) return 0;
+  const fields=[{k:'name'},...tdef.fields,...def.commonFields.filter(f=>f.type!=='photo'&&f.type!=='sketch')];
+  let total=0,filled=0;
+  fields.forEach(f=>{
+    if(f.type==='info') return;
+    if(f.showIf){ if(inst[f.showIf.k]!==f.showIf.val) return; }
+    total++;
+    const v=inst[f.k];
+    if(Array.isArray(v)?v.length:(v!==undefined&&v!==''&&v!==null)) filled++;
+  });
+  return total?Math.round(filled/total*100):0;
+}
+
+function renderSection(modId,s,openFirst){
+  const sec=document.createElement('div');
+  sec.className='sec'+(openFirst?' open':'');
+  sec.dataset.sec=s.id;
+  const head=document.createElement('div');
+  head.className='sec-head';
+  head.innerHTML=`<span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${s.icon}</svg></span>
+    <h4>${s.title}</h4><span class="sec-dot"></span>
+    <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg></span>`;
+  const body=document.createElement('div'); body.className='sec-body';
+  const inner=document.createElement('div'); inner.className='sec-inner';
+  s.fields.forEach(f=>inner.appendChild(renderField(modId,f)));
+  body.appendChild(inner); sec.appendChild(head); sec.appendChild(body);
+  head.addEventListener('click',()=>{
+    sec.classList.toggle('open');
+    body.style.maxHeight = sec.classList.contains('open') ? body.scrollHeight+40+'px' : '0';
+  });
+  requestAnimationFrame(()=>{ if(sec.classList.contains('open')) body.style.maxHeight=body.scrollHeight+40+'px'; });
+  return sec;
+}
+
+function markTouched_unused(){}
+
+/* ===== Kontextbasierte Feld-Render (für Bauteil-Instanzen) =====
+   Schreibt in beliebiges Objekt `obj` statt DATA[modId]. */
+function renderFieldCtx(obj,f,onChange){
+  if(f.type==='info'){
+    const w=document.createElement('div');
+    w.className='field-info'; w.dataset.fk=f.k;
+    w.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>'+f.label+'</span>';
+    return w;
+  }
+  const wrap=document.createElement('div');
+  wrap.className='field'; wrap.dataset.fk=f.k;
+  if(f.showIf){ wrap.dataset.showifK=f.showIf.k; wrap.dataset.showifV=f.showIf.val; }
+  const cur=obj[f.k];
+  const lab=`<label>${f.label}</label>`;
+  let ctrl='';
+  if(['text','num','tel','email','year'].includes(f.type)){
+    const t = f.type==='num'||f.type==='year' ? 'number' : (f.type==='tel'?'tel':(f.type==='email'?'email':'text'));
+    ctrl=`<input type="${t}" data-k="${f.k}" value="${cur??''}" ${f.ph?'placeholder="'+f.ph+'"':''}>`;
+  } else if(f.type==='note'){
+    ctrl=`<textarea data-k="${f.k}" placeholder="${f.ph||''}">${cur??''}</textarea>`;
+  } else if(f.type==='select'){
+    ctrl=`<select data-k="${f.k}"><option value="">– wählen –</option>`+
+      f.opts.map(o=>`<option ${cur===o?'selected':''}>${o}</option>`).join('')+`</select>`;
+  } else if(f.type==='yesno'){
+    ctrl=`<div class="seg" data-k="${f.k}"><button data-v="Ja" class="${cur==='Ja'?'on':''}">Ja</button><button data-v="Nein" class="${cur==='Nein'?'on':''}">Nein</button></div>`;
+  } else if(f.type==='chips'){
+    ctrl=`<div class="chips" data-k="${f.k}" data-mode="single">`+f.opts.map(o=>`<button class="chip ${cur===o?'on':''}" data-v="${o}">${o}</button>`).join('')+`</div>`;
+  } else if(f.type==='multi'){
+    const arr=Array.isArray(cur)?cur:[];
+    ctrl=`<div class="chips" data-k="${f.k}" data-mode="multi">`+f.opts.map(o=>`<button class="chip ${arr.includes(o)?'on':''}" data-v="${o}">${o}</button>`).join('')+`</div>`;
+  } else if(f.type==='photo'){
+    return renderPhotoField(obj,f,onChange);
+  } else if(f.type==='sketch'){
+    return renderSketchField(obj,f,onChange);
+  }
+  wrap.innerHTML=lab+ctrl;
+  bindFieldCtx(obj,wrap,f,onChange);
+  return wrap;
+}
+
+/* ===== Skizzen-Feld: Thumbnails + Editor öffnen ===== */
+function renderSketchField(obj,f,onChange){
+  if(!Array.isArray(obj[f.k])) obj[f.k]=[];
+  const wrap=document.createElement('div');
+  wrap.className='sketch-field'; wrap.dataset.fk=f.k;
+  const sketches=obj[f.k];
+  const label=document.createElement('label');
+  const setLabel=()=>label.textContent=f.label+(sketches.length?' ('+sketches.length+')':'');
+  const grid=document.createElement('div'); grid.className='sketch-grid';
+  function redraw(){
+    grid.innerHTML='';
+    sketches.forEach((s,i)=>{
+      const th=document.createElement('div'); th.className='sketch-thumb';
+      th.innerHTML=`<img src="${s.data}" alt=""><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+      th.querySelector('img').addEventListener('click',()=>openSketchEditor(obj,f,i,redraw,setLabel,onChange));
+      th.querySelector('.del').addEventListener('click',e=>{e.stopPropagation();sketches.splice(i,1);redraw();setLabel();if(onChange)onChange();});
+      grid.appendChild(th);
+    });
+    const add=document.createElement('div'); add.className='sketch-add';
+    add.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21l4-1 11-11-3-3L4 17z"/><path d="M14 6l3 3"/></svg><span>Neue Skizze</span>';
+    add.addEventListener('click',()=>openSketchEditor(obj,f,-1,redraw,setLabel,onChange));
+    grid.appendChild(add);
+  }
+  redraw(); setLabel();
+  wrap.appendChild(label); wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ===== Foto-Feld: Kamera/Galerie, Vorschau, Lightbox ===== */
+function renderPhotoField(obj,f,onChange){
+  if(!Array.isArray(obj[f.k])) obj[f.k]=[];
+  const wrap=document.createElement('div');
+  wrap.className='photo-field'; wrap.dataset.fk=f.k;
+  const photos=obj[f.k];
+  const label=document.createElement('label');
+  label.textContent=f.label+(photos.length?' ('+photos.length+')':'');
+  const grid=document.createElement('div'); grid.className='photo-grid';
+  function redraw(){
+    grid.innerHTML='';
+    photos.forEach((p,i)=>{
+      const th=document.createElement('div'); th.className='photo-thumb';
+      th.innerHTML=`<img src="${p.data}" alt="">${p.cap?'<span class="cap">'+escapeHtml(p.cap)+'</span>':''}
+        <button class="del" aria-label="Löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+      th.querySelector('img').addEventListener('click',()=>openLightbox(obj,f,i,redraw,onChange));
+      th.querySelector('.del').addEventListener('click',(e)=>{
+        e.stopPropagation();
+        photos.splice(i,1); redraw(); label.textContent=f.label+(photos.length?' ('+photos.length+')':''); if(onChange)onChange();
+      });
+      grid.appendChild(th);
+    });
+    // Add-Buttons (Kamera + Galerie)
+    const addCam=document.createElement('div'); addCam.className='photo-add';
+    addCam.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h4l2-2h6l2 2h4v13H3z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Kamera</span>';
+    addCam.addEventListener('click',()=>pickPhotos('camera',obj,f,redraw,label,onChange));
+    grid.appendChild(addCam);
+    const addGal=document.createElement('div'); addGal.className='photo-add';
+    addGal.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h18v14H3z"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="8" cy="9" r="1.4"/></svg><span>Galerie</span>';
+    addGal.addEventListener('click',()=>pickPhotos('gallery',obj,f,redraw,label,onChange));
+    grid.appendChild(addGal);
+  }
+  redraw();
+  wrap.appendChild(label); wrap.appendChild(grid);
+  return wrap;
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+let _pendingPhoto=null;
+function pickPhotos(mode,obj,f,redraw,label,onChange){
+  const input = mode==='camera' ? document.getElementById('fileCamera') : document.getElementById('fileGallery');
+  _pendingPhoto={obj,f,redraw,label,onChange};
+  input.value='';
+  input.click();
+}
+function handleFiles(files){
+  if(!_pendingPhoto||!files||!files.length) return;
+  const {obj,f,redraw,label,onChange}=_pendingPhoto;
+  const arr=obj[f.k];
+  let pending=files.length;
+  [...files].forEach(file=>{
+    compressImage(file, dataUrl=>{
+      arr.push({data:dataUrl, cap:'', ts:Date.now()});
+      if(--pending===0){ redraw(); label.textContent=f.label+(arr.length?' ('+arr.length+')':''); if(onChange)onChange(); }
+    });
+  });
+}
+document.getElementById('fileCamera').addEventListener('change',e=>handleFiles(e.target.files));
+document.getElementById('fileGallery').addEventListener('change',e=>handleFiles(e.target.files));
+
+/* Bild verkleinern & als JPEG-DataURL (spart Speicher fürs spätere PDF) */
+function compressImage(file, cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1600;
+      let {width:w,height:h}=img;
+      if(w>h && w>MAX){ h=Math.round(h*MAX/w); w=MAX; }
+      else if(h>=w && h>MAX){ w=Math.round(w*MAX/h); h=MAX; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',0.78));
+    };
+    img.onerror=()=>cb(ev.target.result); // fallback: original
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* Lightbox */
+let _lb=null;
+function openLightbox(obj,f,idx,redraw,onChange){
+  _lb={obj,f,idx,redraw,onChange};
+  const p=obj[f.k][idx];
+  document.getElementById('lbImg').src=p.data;
+  const cap=document.getElementById('lbCap'); cap.value=p.cap||'';
+  document.getElementById('lightbox').classList.add('show');
+}
+document.getElementById('lbClose').addEventListener('click',closeLightbox);
+function closeLightbox(){
+  if(_lb){ const p=_lb.obj[_lb.f.k][_lb.idx]; if(p){ p.cap=document.getElementById('lbCap').value; } _lb.redraw(); if(_lb.onChange)_lb.onChange(); }
+  document.getElementById('lightbox').classList.remove('show'); _lb=null;
+}
+document.getElementById('lbCap').addEventListener('input',e=>{ if(_lb){ _lb.obj[_lb.f.k][_lb.idx].cap=e.target.value; } });
+document.getElementById('lbDelete').addEventListener('click',()=>{
+  if(!_lb) return;
+  if(confirm('Dieses Foto löschen?')){
+    _lb.obj[_lb.f.k].splice(_lb.idx,1);
+    _lb.redraw(); if(_lb.onChange)_lb.onChange();
+    document.getElementById('lightbox').classList.remove('show'); _lb=null;
+  }
+});
+
+/* =========================================================
+   SKIZZEN-EDITOR (Canvas, Touch + Maus)
+   ========================================================= */
+const SKETCH_COLORS = ['#a8392f','#2f2e29','#1f5fa8','#3f8a3f','#d99a1f','#ffffff'];
+const SKETCH_SIZES  = [3,6,12];
+const sketchEd = {
+  ctx:null, canvas:null, drawing:false, last:null,
+  color:'#a8392f', size:6, tool:'pen',
+  strokes:[],            // Verlauf für Undo (Liste von DataURL-Snapshots)
+  target:null            // {obj,f,idx,redraw,setLabel,onChange,isNew}
+};
+
+function buildSketchTools(){
+  const cw=document.getElementById('seColors'); cw.innerHTML='';
+  SKETCH_COLORS.forEach(col=>{
+    const b=document.createElement('button');
+    b.className='se-color'+(col===sketchEd.color?' on':'');
+    b.style.background=col;
+    if(col==='#ffffff') b.style.border='2px solid #ccc';
+    b.addEventListener('click',()=>{
+      sketchEd.color=col; sketchEd.tool='pen';
+      document.getElementById('seToolPen').classList.add('on');
+      document.getElementById('seToolErase').classList.remove('on');
+      cw.querySelectorAll('.se-color').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+    cw.appendChild(b);
+  });
+  const sw=document.getElementById('seSizes'); sw.innerHTML='';
+  SKETCH_SIZES.forEach(sz=>{
+    const b=document.createElement('button');
+    b.className='se-size'+(sz===sketchEd.size?' on':'');
+    const d=Math.max(6,Math.min(18,sz+4));
+    b.innerHTML=`<span class="dot" style="width:${d}px;height:${d}px"></span>`;
+    b.addEventListener('click',()=>{ sketchEd.size=sz; sw.querySelectorAll('.se-size').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+    sw.appendChild(b);
+  });
+}
+
+document.getElementById('seToolPen').addEventListener('click',()=>{
+  sketchEd.tool='pen';
+  document.getElementById('seToolPen').classList.add('on');
+  document.getElementById('seToolErase').classList.remove('on');
+});
+document.getElementById('seToolErase').addEventListener('click',()=>{
+  sketchEd.tool='erase';
+  document.getElementById('seToolErase').classList.add('on');
+  document.getElementById('seToolPen').classList.remove('on');
+});
+
+/* Editor öffnen: idx=-1 → neue Skizze (erst Hintergrund wählen) */
+function openSketchEditor(obj,f,idx,redraw,setLabel,onChange){
+  sketchEd.target={obj,f,idx,redraw,setLabel,onChange,isNew:idx<0};
+  if(idx<0){
+    // Hintergrund-Wahl anzeigen
+    document.getElementById('bgChoice').classList.add('show');
+  } else {
+    const s=obj[f.k][idx];
+    launchEditor(s.bg||null, s.data||null);
+  }
+}
+
+/* Hintergrund-Dialog */
+document.getElementById('bgBlank').addEventListener('click',()=>{
+  document.getElementById('bgChoice').classList.remove('show');
+  launchEditor(null,null);
+});
+document.getElementById('bgPhoto').addEventListener('click',()=>{
+  document.getElementById('sketchBgFile').value='';
+  document.getElementById('sketchBgFile').click();
+});
+document.getElementById('bgCancel').addEventListener('click',()=>{
+  document.getElementById('bgChoice').classList.remove('show'); sketchEd.target=null;
+});
+document.getElementById('sketchBgFile').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0]; if(!file) return;
+  compressImage(file, dataUrl=>{
+    document.getElementById('bgChoice').classList.remove('show');
+    launchEditor(dataUrl,null);
+  });
+});
+
+/* Editor starten: bg = Hintergrundfoto (DataURL|null), existing = vorhandene Zeichnung (DataURL|null) */
+function launchEditor(bg, existing){
+  const ed=document.getElementById('sketchEd');
+  ed.classList.add('show');
+  buildSketchTools();
+  const wrap=document.getElementById('seWrap');
+  const bgImg=document.getElementById('seBgImg');
+  const canvas=document.getElementById('seCanvas');
+  sketchEd.canvas=canvas;
+  sketchEd.bg=bg;
+  sketchEd.strokes=[];
+
+  const setup=(W,H)=>{
+    canvas.width=W; canvas.height=H;
+    canvas.style.width=W+'px'; canvas.style.height=H+'px';
+    const ctx=canvas.getContext('2d');
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    sketchEd.ctx=ctx;
+    if(existing){ const ei=new Image(); ei.onload=()=>{ctx.drawImage(ei,0,0,W,H);pushUndo();}; ei.src=existing; }
+    else pushUndo();
+    updateUndoBtn();
+  };
+
+  if(bg){
+    bgImg.style.display='block'; bgImg.src=bg;
+    bgImg.onload=()=>{
+      // Canvas exakt über das (eingepasste) Bild legen
+      const r=bgImg.getBoundingClientRect();
+      const W=Math.round(bgImg.naturalWidth), H=Math.round(bgImg.naturalHeight);
+      // Anzeige folgt dem Bild via CSS; intern in Originalauflösung zeichnen, aber begrenzt
+      const maxDim=1600; let cw=W,ch=H;
+      if(cw>maxDim||ch>maxDim){ const k=maxDim/Math.max(cw,ch); cw=Math.round(cw*k); ch=Math.round(ch*k); }
+      // overlay positionieren über sichtbarem Bild
+      positionCanvasOverImage();
+      setup(cw,ch);
+    };
+    if(bgImg.complete && bgImg.naturalWidth) bgImg.onload();
+  } else {
+    bgImg.style.display='none'; bgImg.removeAttribute('src');
+    // leere Fläche: weißer Grund in Wrap-Größe
+    const r=wrap.getBoundingClientRect();
+    const W=Math.round(r.width-0), H=Math.round(r.height-0);
+    canvas.style.position='absolute';
+    canvas.style.left='0'; canvas.style.top='0';
+    // weißen Hintergrund auf Canvas zeichnen
+    setupBlank(W,H,existing);
+  }
+}
+
+function setupBlank(W,H,existing){
+  const canvas=sketchEd.canvas;
+  canvas.width=W; canvas.height=H;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  canvas.style.position='absolute'; canvas.style.left='0'; canvas.style.top='0';
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  sketchEd.ctx=ctx; sketchEd.blank=true; sketchEd.strokes=[];
+  if(existing){ const ei=new Image(); ei.onload=()=>{ctx.drawImage(ei,0,0,W,H);pushUndo();}; ei.src=existing; }
+  else pushUndo();
+  updateUndoBtn();
+}
+
+function positionCanvasOverImage(){
+  const bgImg=document.getElementById('seBgImg');
+  const canvas=sketchEd.canvas;
+  const wrap=document.getElementById('seWrap');
+  const ir=bgImg.getBoundingClientRect(), wr=wrap.getBoundingClientRect();
+  canvas.style.position='absolute';
+  canvas.style.left=(ir.left-wr.left)+'px';
+  canvas.style.top=(ir.top-wr.top)+'px';
+  canvas.style.width=ir.width+'px';
+  canvas.style.height=ir.height+'px';
+  sketchEd.blank=false;
+}
+
+/* Koordinaten aus Touch/Maus → Canvas-Pixel */
+function sketchPos(e){
+  const canvas=sketchEd.canvas;
+  const r=canvas.getBoundingClientRect();
+  const pt=e.touches?e.touches[0]:e;
+  const x=(pt.clientX-r.left)*(canvas.width/r.width);
+  const y=(pt.clientY-r.top)*(canvas.height/r.height);
+  return {x,y};
+}
+function startDraw(e){
+  e.preventDefault();
+  sketchEd.drawing=true; sketchEd.last=sketchPos(e);
+}
+function moveDraw(e){
+  if(!sketchEd.drawing) return;
+  e.preventDefault();
+  const ctx=sketchEd.ctx, p=sketchPos(e), l=sketchEd.last;
+  ctx.beginPath();
+  if(sketchEd.tool==='erase'){
+    ctx.globalCompositeOperation = sketchEd.blank ? 'source-over' : 'destination-out';
+    if(sketchEd.blank) ctx.strokeStyle='#ffffff';
+    ctx.lineWidth=sketchEd.size*3;
+  } else {
+    ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle=sketchEd.color;
+    ctx.lineWidth=sketchEd.size;
+  }
+  ctx.moveTo(l.x,l.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+  sketchEd.last=p;
+}
+function endDraw(e){
+  if(!sketchEd.drawing) return;
+  sketchEd.drawing=false;
+  sketchEd.ctx.globalCompositeOperation='source-over';
+  pushUndo();
+}
+function bindCanvasEvents(){
+  const c=document.getElementById('seCanvas');
+  c.onmousedown=startDraw; c.onmousemove=moveDraw; c.onmouseup=endDraw; c.onmouseleave=endDraw;
+  c.ontouchstart=startDraw; c.ontouchmove=moveDraw; c.ontouchend=endDraw;
+}
+bindCanvasEvents();
+
+/* Undo via Snapshots */
+function pushUndo(){
+  try{ sketchEd.strokes.push(sketchEd.canvas.toDataURL()); if(sketchEd.strokes.length>25) sketchEd.strokes.shift(); }catch(e){}
+  updateUndoBtn();
+}
+function updateUndoBtn(){ document.getElementById('seUndo').disabled = sketchEd.strokes.length<=1; }
+document.getElementById('seUndo').addEventListener('click',()=>{
+  if(sketchEd.strokes.length<=1) return;
+  sketchEd.strokes.pop();
+  const snap=sketchEd.strokes[sketchEd.strokes.length-1];
+  const img=new Image();
+  img.onload=()=>{ const ctx=sketchEd.ctx; ctx.clearRect(0,0,sketchEd.canvas.width,sketchEd.canvas.height); ctx.drawImage(img,0,0); };
+  img.src=snap;
+  updateUndoBtn();
+});
+
+/* Speichern: Hintergrund + Zeichnung zu einem Bild zusammenführen */
+document.getElementById('seSave').addEventListener('click',()=>{
+  const t=sketchEd.target; if(!t) return closeSketchEditor();
+  const canvas=sketchEd.canvas;
+  // Compositing: bei Foto-Hintergrund Bild + Zeichnung kombinieren
+  const out=document.createElement('canvas');
+  out.width=canvas.width; out.height=canvas.height;
+  const octx=out.getContext('2d');
+  if(sketchEd.bg){
+    const bi=new Image();
+    bi.onload=()=>{
+      octx.drawImage(bi,0,0,out.width,out.height);
+      octx.drawImage(canvas,0,0);
+      commitSketch(out.toDataURL('image/jpeg',0.82));
+    };
+    bi.src=sketchEd.bg;
+  } else {
+    octx.drawImage(canvas,0,0); // weißer Grund ist schon drauf
+    commitSketch(out.toDataURL('image/jpeg',0.85));
+  }
+});
+function commitSketch(dataUrl){
+  const t=sketchEd.target;
+  const rec={data:dataUrl, bg:sketchEd.bg||null, ts:Date.now()};
+  if(t.isNew) t.obj[t.f.k].push(rec);
+  else t.obj[t.f.k][t.idx]=rec;
+  t.redraw(); t.setLabel(); if(t.onChange)t.onChange();
+  closeSketchEditor();
+}
+document.getElementById('seCancel').addEventListener('click',closeSketchEditor);
+function closeSketchEditor(){
+  document.getElementById('sketchEd').classList.remove('show');
+  sketchEd.target=null; sketchEd.strokes=[];
+}
+
+function bindFieldCtx(obj,wrap,f,onChange){
+  const set=(val)=>{ obj[f.k]=val; if(onChange) onChange(); };
+  const inp=wrap.querySelector('input,textarea,select');
+  if(inp){ inp.addEventListener('input',()=>set(inp.value)); }
+  const seg=wrap.querySelector('.seg');
+  if(seg){ seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); set(b.dataset.v);
+  }));}
+  const chips=wrap.querySelector('.chips');
+  if(chips){ const mode=chips.dataset.mode;
+    chips.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+      if(mode==='single'){ chips.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); set(c.dataset.v); }
+      else { c.classList.toggle('on'); const sel=[...chips.querySelectorAll('.chip.on')].map(x=>x.dataset.v); set(sel); }
+    }));
+  }
+}
+
+function applyConditionalCtx(container,obj){
+  container.querySelectorAll('.field[data-showif-k]').forEach(w=>{
+    const k=w.dataset.showifK, v=w.dataset.showifV;
+    w.style.display=(obj[k]===v)?'':'none';
+  });
+}
+
+function renderField(modId,f){
+  const wrap=document.createElement('div');
+  wrap.className='field'; wrap.dataset.fk=f.k;
+  if(f.showIf){ wrap.dataset.showifK=f.showIf.k; wrap.dataset.showifV=f.showIf.val; }
+  const cur=(DATA[modId]||{})[f.k];
+  const lab=`<label>${f.label}</label>`;
+  let ctrl='';
+  if(['text','num','tel','email','year'].includes(f.type)){
+    const t = f.type==='num'||f.type==='year' ? 'number' : (f.type==='tel'?'tel':(f.type==='email'?'email':'text'));
+    ctrl=`<input type="${t}" data-k="${f.k}" value="${cur??''}" ${f.ph?'placeholder="'+f.ph+'"':''}>`;
+  } else if(f.type==='note'){
+    ctrl=`<textarea data-k="${f.k}" placeholder="${f.ph||''}">${cur??''}</textarea>`;
+  } else if(f.type==='select'){
+    ctrl=`<select data-k="${f.k}"><option value="">– wählen –</option>`+
+      f.opts.map(o=>`<option ${cur===o?'selected':''}>${o}</option>`).join('')+`</select>`;
+  } else if(f.type==='yesno'){
+    ctrl=`<div class="seg" data-k="${f.k}">
+      <button data-v="Ja" class="${cur==='Ja'?'on':''}">Ja</button>
+      <button data-v="Nein" class="${cur==='Nein'?'on':''}">Nein</button></div>`;
+  } else if(f.type==='chips'){
+    ctrl=`<div class="chips" data-k="${f.k}" data-mode="single">`+
+      f.opts.map(o=>`<button class="chip ${cur===o?'on':''}" data-v="${o}">${o}</button>`).join('')+`</div>`;
+  } else if(f.type==='multi'){
+    const arr=Array.isArray(cur)?cur:[];
+    ctrl=`<div class="chips" data-k="${f.k}" data-mode="multi">`+
+      f.opts.map(o=>`<button class="chip ${arr.includes(o)?'on':''}" data-v="${o}">${o}</button>`).join('')+`</div>`;
+  }
+  wrap.innerHTML=lab+ctrl;
+  bindField(modId,wrap,f);
+  return wrap;
+}
+
+function bindField(modId,wrap,f){
+  const set=(val)=>{ DATA[modId][f.k]=val; updateSectionStatus(); updateMeta(); applyConditional(); };
+  const inp=wrap.querySelector('input,textarea,select');
+  if(inp){ inp.addEventListener('input',()=>set(inp.value)); }
+  const seg=wrap.querySelector('.seg');
+  if(seg){ seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); set(b.dataset.v);
+  }));}
+  const chips=wrap.querySelector('.chips');
+  if(chips){ const mode=chips.dataset.mode;
+    chips.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+      if(mode==='single'){ chips.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); set(c.dataset.v); }
+      else { c.classList.toggle('on'); const sel=[...chips.querySelectorAll('.chip.on')].map(x=>x.dataset.v); set(sel); }
+    }));
+  }
+}
+function updateSectionStatus(){
+  const def=MODULE_DEFS[CURRENT];
+  if(!def.sections) return;
+  acc.querySelectorAll('.sec').forEach(secEl=>{
+    const sdef=def.sections.find(s=>s.id===secEl.dataset.sec);
+    if(!sdef) return;
+    const pct=sectionCompletion(CURRENT,sdef);
+    const st=statusOf(pct);
+    secEl.classList.remove('sd-part','sd-done');
+    if(st==='part') secEl.classList.add('sd-part');
+    if(st==='done') secEl.classList.add('sd-done');
+  });
+}
+
+/* conditional fields (showIf) — nur für form-Module (parts nutzen applyConditionalCtx) */
+function applyConditional(){
+  const def=MODULE_DEFS[CURRENT];
+  if(def && def.kind==='parts') return;
+  acc.querySelectorAll('.field[data-showif-k]').forEach(w=>{
+    const k=w.dataset.showifK, v=w.dataset.showifV;
+    const show=(DATA[CURRENT]||{})[k]===v;
+    w.style.display=show?'':'none';
+  });
+  // recalc open accordion heights
+  acc.querySelectorAll('.sec.open .sec-body').forEach(b=>b.style.maxHeight=b.scrollHeight+40+'px');
+}
+
+/* meta progress */
+function updateMeta(){
+  const pct=completion(CURRENT);
+  const meta=document.querySelector('.mod-meta');
+  document.getElementById('metaFill').style.width=pct+'%';
+  document.getElementById('metaPct').textContent = pct>=100 ? 'Fertig' : pct+' %';
+  meta.classList.remove('st-part','st-done');
+  const st=statusOf(pct);
+  if(st==='part') meta.classList.add('st-part');
+  if(st==='done') meta.classList.add('st-done');
+  scheduleSave();
+}
+
+/* =========================================================
+   PDF-BERICHT (Laczy-Stil, Deckblatt + Module)
+   ========================================================= */
+function fmtValue(f,val){
+  if(val===undefined||val===null||val==='') return null;
+  if(Array.isArray(val)){ return val.length?val.join(', '):null; }
+  return String(val);
+}
+function buildReport(){
+  const doc=document.getElementById('reportDoc');
+  const sd=DATA.stammdaten||{};
+  const objName = sd.kategorie ? (sd.kategorie+(sd.g_strasse?' · '+sd.g_strasse:'')) : (sd.g_strasse||sd.strasse||'Objekt ohne Bezeichnung');
+  const today=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'});
+
+  let html='';
+  // ---- Deckblatt ----
+  html+=`<div class="cover">
+    <svg class="leaf" viewBox="0 0 30 42" fill="none"><path d="M15 1C7 12 3 22 3 30a12 12 0 0 0 24 0c0-8-4-18-12-29Z" fill="${'#a8392f'}" opacity=".9"/></svg>
+    <div class="ttl">L<span class="i">a</span>czy<span class="togo">ToGo · Datenaufnahme</span></div>
+    <div class="sub">Gebäude-Energieberatung · Baustellenaufnahme</div>
+    <div class="obj">${escapeHtml(objName)}</div>
+    <div class="meta">
+      ${coverRow('Objektadresse', [sd.g_strasse,sd.g_plzort].filter(Boolean).join(', '))}
+      ${coverRow('Gebäudekategorie', sd.kategorie)}
+      ${coverRow('Baujahr', sd.baujahr)}
+      ${coverRow('Wohnfläche', sd.wohnflaeche?sd.wohnflaeche+' m²':'')}
+      ${coverRow('Eigentümer', sd.name)}
+      ${coverRow('Kontakt', [sd.tel,sd.email].filter(Boolean).join(' · '))}
+    </div>
+    <div class="date">Aufnahmedatum: ${today}</div>
+  </div>`;
+
+  // ---- Module ----
+  MODULES.forEach(m=>{
+    if(m.status!=='ready') return;
+    const def=MODULE_DEFS[m.id];
+    html+=`<div class="mod-block"><div class="pg">`;
+    html+=`<h2 class="mod">${escapeHtml(def.title)}</h2>`;
+    if(def.sub) html+=`<div class="mod-intro">${escapeHtml(def.sub)}</div>`;
+    if(def.kind==='form'){
+      html+=renderFormReport(m.id,def);
+    } else if(def.kind==='parts'){
+      html+=renderPartsReport(m.id,def);
+    }
+    html+=`</div></div>`;
+  });
+
+  html+=`<div class="foot">Erstellt mit Laczy ToGo · ${today} · Diese Aufnahme dient als Arbeitsgrundlage der Energieberatung.</div>`;
+  doc.innerHTML=html;
+}
+function coverRow(label,val){
+  if(!val) return '';
+  return `<div><div class="l">${label}</div><div class="v">${escapeHtml(String(val))}</div></div>`;
+}
+function renderFormReport(modId,def){
+  const d=DATA[modId]||{};
+  let html='';
+  def.sections.forEach(s=>{
+    const rows=[];
+    s.fields.forEach(f=>{
+      if(f.type==='info') return;
+      if(f.showIf && d[f.showIf.k]!==f.showIf.val) return;
+      const v=fmtValue(f,d[f.k]);
+      if(v!==null) rows.push(`<tr><td class="k">${escapeHtml(f.label)}</td><td class="v">${escapeHtml(v)}</td></tr>`);
+    });
+    if(rows.length){
+      html+=`<h3 class="sec">${escapeHtml(s.title)}</h3><table class="kv">${rows.join('')}</table>`;
+    }
+  });
+  return html || `<div class="empty">Keine Angaben erfasst.</div>`;
+}
+function renderPartsReport(modId,def){
+  const parts=DATA[modId]._parts||[];
+  if(!parts.length) return `<div class="empty">Keine Bauteile erfasst.</div>`;
+  let html='';
+  parts.forEach((inst,idx)=>{
+    const tdef=inst._type?def.types.find(t=>t.id===inst._type):null;
+    const title=inst.name||(tdef?tdef.label:'Bauteil '+(idx+1));
+    html+=`<h4 class="part">${escapeHtml(title)}${tdef?' · '+escapeHtml(tdef.label):''}</h4>`;
+    const rows=[];
+    if(tdef){
+      tdef.fields.forEach(f=>{
+        if(f.type==='info') return;
+        if(f.showIf && inst[f.showIf.k]!==f.showIf.val) return;
+        const v=fmtValue(f,inst[f.k]);
+        if(v!==null) rows.push(`<tr><td class="k">${escapeHtml(f.label)}</td><td class="v">${escapeHtml(v)}</td></tr>`);
+      });
+    }
+    // Bemerkung (common note)
+    const note=fmtValue({},inst.bemerkung);
+    if(note) rows.push(`<tr><td class="k">Bemerkungen</td><td class="v">${escapeHtml(note)}</td></tr>`);
+    if(rows.length) html+=`<table class="kv">${rows.join('')}</table>`;
+    // Fotos
+    const fotos=inst._foto||[];
+    const skizzen=inst._skizze||[];
+    if(fotos.length||skizzen.length){
+      html+=`<div class="imgs">`;
+      fotos.forEach(p=>{ html+=`<figure><img src="${p.data}">${p.cap?'<figcaption>'+escapeHtml(p.cap)+'</figcaption>':'<figcaption>Foto</figcaption>'}</figure>`; });
+      skizzen.forEach(s=>{ html+=`<figure><img src="${s.data}"><figcaption>Skizze</figcaption></figure>`; });
+      html+=`</div>`;
+    }
+  });
+  return html;
+}
+
+function openReport(){
+  buildReport();
+  document.getElementById('report').classList.add('show');
+  document.getElementById('report').scrollTop=0;
+}
+function closeReport(){ document.getElementById('report').classList.remove('show'); }
+document.getElementById('reportClose').addEventListener('click',closeReport);
+document.getElementById('reportPrint').addEventListener('click',()=>window.print());
+document.getElementById('tabReport').addEventListener('click',openReport);
+document.getElementById('tabHome').addEventListener('click',()=>{ closeReport(); switchView('home'); });
+
+/* ============ VIEW SWITCH ============ */
+function switchView(name){
+  document.getElementById('view-home').classList.toggle('active',name==='home');
+  document.getElementById('view-module').classList.toggle('active',name==='module');
+  document.getElementById('tabbar').style.display = name==='home'?'flex':'none';
+  document.getElementById('savebar').classList.toggle('show',name==='module');
+  document.getElementById('status').style.visibility = name==='home'?'visible':'hidden';
+  window.scrollTo(0,0);
+  if(name==='home') renderHome();
+  if(name==='module') applyConditional();
+}
+document.getElementById('backBtn').addEventListener('click',()=>switchView('home'));
+document.getElementById('saveResetView').addEventListener('click',()=>switchView('home'));
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const note=document.getElementById('modFoot');
+  const pct=completion(CURRENT);
+  if(pct>=100){
+    note.textContent='✓ Modul vollständig — alles erfasst';
+    note.style.color='var(--st-done)';
+  } else if(pct>0){
+    note.textContent='Gespeichert · '+pct+' % erfasst · noch offen';
+    note.style.color='#9a6512';
+  } else {
+    note.textContent='Noch nichts erfasst';
+    note.style.color='var(--st-empty)';
+  }
+  setTimeout(()=>{note.textContent='Eingaben werden automatisch gehalten.';note.style.color='';},2400);
+});
+
+/* ============ NET STATUS ============ */
+function updNet(){
+  const s=document.getElementById('status'), t=document.getElementById('statusText');
+  if(navigator.onLine){s.classList.remove('offline');t.textContent='Online · synchron';}
+  else{s.classList.add('offline');t.textContent='Offline · bereit';}
+}
+window.addEventListener('online',updNet);
+window.addEventListener('offline',updNet);
+updNet(); renderHome();
+initStore();
+
+/* Service-Worker registrieren (macht die App offline-installierbar).
+   Funktioniert nur über http(s) — also auf GitHub Pages o.ä., nicht bei lokalem Datei-Öffnen. */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline-Funktion optional */ });
+  });
+}
+
+/* Installations-Einladung (Android/Chrome: beforeinstallprompt) */
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _deferredPrompt=e;
+  document.getElementById('installBar').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async()=>{
+  document.getElementById('installBar').classList.remove('show');
+  if(_deferredPrompt){ _deferredPrompt.prompt(); await _deferredPrompt.userChoice; _deferredPrompt=null; }
+});
+document.getElementById('installDismiss').addEventListener('click', ()=>{
+  document.getElementById('installBar').classList.remove('show');
+});
+window.addEventListener('appinstalled', ()=>{ document.getElementById('installBar').classList.remove('show'); });
+</script>
+</body>
+</html>

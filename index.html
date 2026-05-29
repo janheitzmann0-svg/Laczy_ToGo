@@ -2,6 +2,11 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<!-- Sicherheit: Content-Security-Policy beschränkt, welche Quellen geladen/ausgeführt werden dürfen.
+     Schützt vor eingeschleustem Fremdcode (XSS). Nur eigene Dateien + Google Fonts erlaubt. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#f2f0e8">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,6 +15,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="html2pdf.bundle.min.js"></script>
 <title>Laczy ToGo — Baustellenaufnahme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -296,60 +302,101 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .bg-opt span{font-size:12px;color:var(--ink-soft)}
 .bg-cancel{width:100%;background:none;border:none;color:var(--ink-soft);font-family:'Fraunces';font-size:14px;padding:14px;margin-top:8px;cursor:pointer}
 
+/* ===== Bestätigungs-Dialog (ersetzt confirm) ===== */
+.confirm-ov{position:fixed;inset:0;z-index:90;background:rgba(28,27,24,.55);display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(2px)}
+.confirm-ov.show{display:flex;animation:fade .2s ease both}
+.confirm-box{background:var(--bg);border-radius:18px;max-width:360px;width:100%;padding:24px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.confirm-box h3{font-family:'Fraunces';font-weight:500;font-size:20px;color:var(--ink);margin-bottom:8px}
+.confirm-box p{font-size:14px;line-height:1.5;color:var(--ink-soft);margin-bottom:20px}
+.confirm-row{display:flex;gap:10px}
+.confirm-row button{flex:1;border:none;border-radius:12px;padding:13px;font-family:'Fraunces';font-size:15px;cursor:pointer;transition:.15s}
+.confirm-row .cancel{background:var(--card);border:1px solid var(--hair);color:var(--ink)}
+.confirm-row .ok{background:var(--theme);color:#fff}
+.confirm-row .ok:active{background:var(--theme-deep)}
+.confirm-row button:active{transform:scale(.97)}
+
+/* ===== Projekt-Ansicht ===== */
+.proj-intro{text-align:center;padding:6px 0 2px}
+.proj-list{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.proj-card{position:relative;display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:16px 16px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s,box-shadow .18s,background .18s;text-align:left;width:100%}
+.proj-card:active{transform:scale(.99)}
+.proj-card:hover{background:var(--card-hover);box-shadow:var(--shadow-lg)}
+.proj-card .pic{width:46px;height:46px;border-radius:13px;background:var(--bg-warm);border:1px solid var(--hair);display:grid;place-items:center;color:var(--theme);flex-shrink:0}
+.proj-card .pic svg{width:23px;height:23px}
+.proj-card .pinfo{flex:1;min-width:0}
+.proj-card .pinfo b{display:block;font-family:'Fraunces';font-weight:400;font-size:19px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-card .pinfo span{font-size:12.5px;color:var(--ink-soft)}
+.proj-card .pprog{display:flex;align-items:center;gap:7px;margin-top:7px}
+.proj-card .pbar{flex:1;height:4px;border-radius:4px;background:var(--bg-warm);overflow:hidden;max-width:120px}
+.proj-card .pbar > i{display:block;height:100%;background:var(--theme)}
+.proj-card .ppct{font-family:'Fraunces';font-size:11px;color:var(--ink-soft)}
+.proj-card .pdel{flex-shrink:0;width:36px;height:36px;border-radius:10px;border:1px solid var(--hair);background:var(--bg);color:var(--ink-soft);display:grid;place-items:center;cursor:pointer;transition:.15s}
+.proj-card .pdel:hover{border-color:var(--st-empty);color:var(--st-empty)}
+.proj-card .pdel svg{width:16px;height:16px}
+.proj-new{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--theme);color:#fff;border:none;border-radius:15px;padding:16px;font-family:'Fraunces';font-size:16px;cursor:pointer;transition:.15s;margin-top:4px;box-shadow:0 4px 16px rgba(168,57,47,.22)}
+.proj-new:active{transform:scale(.98);background:var(--theme-deep)}
+.proj-new svg{width:19px;height:19px}
+.proj-empty{text-align:center;color:var(--ink-soft);font-style:italic;font-size:14px;padding:30px 16px 24px;line-height:1.6}
+/* Projekt-Name-Dialog */
+.confirm-box input.pname{width:100%;background:var(--bg);border:1px solid var(--hair);border-radius:11px;padding:12px 13px;font-family:'Spectral',serif;font-size:16px;color:var(--ink);margin-bottom:18px}
+.confirm-box input.pname:focus{outline:none;border-color:var(--theme-soft);background:#fff;box-shadow:0 0 0 3px rgba(168,57,47,.08)}
+/* aktueller Projektname im Modul-Header */
+.proj-tag{display:inline-flex;align-items:center;gap:6px;font-family:'Fraunces';font-size:12px;color:var(--theme-deep);background:var(--theme-tint);border:1px solid #e4cfc9;padding:4px 10px;border-radius:20px;margin-bottom:4px}
+.proj-tag svg{width:12px;height:12px}
+
 /* ===== PDF / Bericht-Export ===== */
-.report{position:fixed;inset:0;z-index:80;background:var(--bg);overflow-y:auto;display:none}
+.report{position:fixed;inset:0;z-index:80;background:#e8e4d8;overflow-y:auto;display:none}
 .report.show{display:block}
 .report-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px calc(12px);background:rgba(242,240,232,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top))}
 .report-bar .se-btn{background:var(--card);border:1px solid var(--hair);color:var(--ink);border-radius:11px;padding:10px 16px;font-family:'Fraunces';font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
 .report-bar .se-btn svg{width:16px;height:16px}
 .report-bar .se-btn.primary{background:var(--theme);color:#fff;border-color:var(--theme)}
+.report-bar .se-btn:disabled{opacity:.55;pointer-events:none}
 .report-scroll{padding:16px;max-width:760px;margin:0 auto}
 
-/* das eigentliche Dokument */
-#reportDoc{background:#fff;color:#2f2e29;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
-#reportDoc .pg{padding:30px 30px 24px}
-#reportDoc .cover{background:linear-gradient(160deg,#f6f4ec,#efe9da);padding:48px 30px 40px;border-bottom:3px solid var(--theme)}
-#reportDoc .cover .leaf{width:34px;height:46px;margin-bottom:10px}
-#reportDoc .cover .ttl{font-family:'Fraunces';font-size:42px;line-height:.95;color:#2f2e29}
-#reportDoc .cover .ttl .i{font-style:italic;color:var(--theme)}
-#reportDoc .cover .togo{font-style:italic;font-weight:300;font-size:14px;letter-spacing:.3em;text-transform:uppercase;color:var(--theme-deep);display:block;margin-top:8px}
-#reportDoc .cover .sub{font-family:'Fraunces';font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-top:22px}
-#reportDoc .cover .obj{margin-top:8px;font-size:22px;font-family:'Fraunces';color:#2f2e29}
-#reportDoc .cover .meta{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-size:13px}
-#reportDoc .cover .meta .l{color:var(--ink-soft);font-family:'Fraunces';font-size:11px;letter-spacing:.04em;text-transform:uppercase}
-#reportDoc .cover .meta .v{color:#2f2e29;margin-bottom:4px}
-#reportDoc .cover .date{margin-top:24px;font-size:12px;color:var(--ink-soft);font-style:italic}
+/* das eigentliche Dokument — A4-Proportionen, wird 1:1 zu PDF */
+#reportDoc{background:#fff;color:#2f2e29;box-shadow:0 8px 30px rgba(0,0,0,.12);overflow:hidden;font-family:'Spectral',Georgia,serif}
+.pdf-page{position:relative;background:#fff;overflow:hidden}
+.pdf-page .inner{padding:46px 44px}
 
-#reportDoc h2.mod{font-family:'Fraunces';font-weight:400;font-size:26px;color:#2f2e29;margin:8px 0 4px;padding-bottom:8px;border-bottom:2px solid var(--theme)}
-#reportDoc .mod-intro{font-size:13px;color:var(--ink-soft);font-style:italic;margin-bottom:14px}
-#reportDoc h3.sec{font-family:'Fraunces';font-weight:500;font-size:17px;color:var(--theme-deep);margin:18px 0 8px;display:flex;align-items:center;gap:8px}
-#reportDoc h3.sec::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--theme)}
-#reportDoc h4.part{font-family:'Fraunces';font-weight:500;font-size:16px;color:#2f2e29;margin:16px 0 6px;background:#f4f1e8;border-left:3px solid var(--theme);padding:7px 10px;border-radius:0 6px 6px 0}
-#reportDoc table.kv{width:100%;border-collapse:collapse;margin:2px 0 6px}
-#reportDoc table.kv td{padding:5px 8px;font-size:13px;vertical-align:top;border-bottom:1px solid #eee9dc}
-#reportDoc table.kv td.k{color:var(--ink-soft);width:42%;font-family:'Fraunces';font-size:12px}
-#reportDoc table.kv td.v{color:#2f2e29}
-#reportDoc .imgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px}
-#reportDoc .imgs figure{margin:0;border:1px solid #eee9dc;border-radius:8px;overflow:hidden}
-#reportDoc .imgs img{width:100%;display:block;object-fit:cover;max-height:230px}
-#reportDoc .imgs figcaption{font-size:11px;color:var(--ink-soft);padding:5px 7px;font-style:italic}
-#reportDoc .empty{font-size:13px;color:#b6ae98;font-style:italic;padding:6px 0}
-#reportDoc .foot{padding:16px 30px 26px;border-top:1px solid #eee9dc;font-size:11px;color:var(--ink-soft);text-align:center;font-family:'Fraunces'}
+/* ---- Deckblatt (vollflächig, in Farbe) ---- */
+.cover-page{background:linear-gradient(165deg,#faf8f1 0%,#f0ebdd 55%,#e9e2d1 100%);position:relative}
+.cover-page::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:linear-gradient(90deg,var(--theme),var(--theme-soft))}
+.cover-page .inner{padding:60px 48px 70px;min-height:920px;display:flex;flex-direction:column}
+.cover-leaf{width:54px;height:74px;margin-bottom:18px}
+.cover-brand{font-family:'Fraunces';font-size:58px;line-height:.9;color:#2f2e29;letter-spacing:-.01em}
+.cover-brand .i{font-style:italic;color:var(--theme)}
+.cover-togo{font-style:italic;font-weight:300;font-size:17px;letter-spacing:.34em;text-transform:uppercase;color:var(--theme-deep);display:block;margin-top:14px}
+.cover-kicker{font-family:'Fraunces';font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#8a8472;margin-top:46px;padding-bottom:14px;border-bottom:1px solid #d8d1bd}
+.cover-obj{margin-top:26px;font-size:32px;font-family:'Fraunces';font-weight:400;color:#2f2e29;line-height:1.15}
+.cover-meta{margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:20px 26px}
+.cover-meta .l{color:#a39c87;font-family:'Fraunces';font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.cover-meta .v{color:#2f2e29;font-size:16px}
+.cover-spacer{flex:1}
+.cover-foot{margin-top:40px;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:#8a8472}
+.cover-foot .date{font-family:'Fraunces';font-size:14px;color:var(--theme-deep)}
 
-@media print{
-  body *{visibility:hidden}
-  .report,.report *{visibility:visible}
-  .report{position:absolute;inset:auto;display:block;background:#fff;overflow:visible}
-  .report-bar{display:none}
-  .report-scroll{padding:0;max-width:none}
-  #reportDoc{box-shadow:none;border-radius:0}
-  #reportDoc .mod-block{page-break-inside:auto}
-  #reportDoc h2.mod{page-break-after:avoid}
-  #reportDoc h4.part,#reportDoc h3.sec{page-break-after:avoid}
-  #reportDoc .imgs figure,#reportDoc table.kv tr{page-break-inside:avoid}
-  #reportDoc .cover{page-break-after:always}
-  .mod-block{page-break-before:always}
-}
+/* ---- Modul-Seiten ---- */
+.mod-block .inner{padding:44px 44px 40px}
+#reportDoc h2.mod{font-family:'Fraunces';font-weight:400;font-size:30px;color:#2f2e29;margin:0 0 3px;letter-spacing:-.01em}
+#reportDoc h2.mod .mn{display:inline-block;font-size:14px;color:var(--theme);border:1.5px solid var(--theme-soft);border-radius:50%;width:30px;height:30px;line-height:27px;text-align:center;margin-right:12px;vertical-align:middle}
+#reportDoc .mod-rule{height:2px;background:linear-gradient(90deg,var(--theme),transparent);margin:10px 0 4px}
+#reportDoc .mod-intro{font-size:13px;color:#8a8472;font-style:italic;margin-bottom:20px}
+#reportDoc h3.sec{font-family:'Fraunces';font-weight:500;font-size:16px;color:var(--theme-deep);margin:22px 0 10px;display:flex;align-items:center;gap:9px;text-transform:uppercase;letter-spacing:.04em}
+#reportDoc h3.sec::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--theme);flex-shrink:0}
+#reportDoc h4.part{font-family:'Fraunces';font-weight:500;font-size:17px;color:#2f2e29;margin:22px 0 8px;background:#f6f3ea;border-left:3px solid var(--theme);padding:10px 13px;border-radius:0 8px 8px 0}
+#reportDoc table.kv{width:100%;border-collapse:collapse;margin:2px 0 10px}
+#reportDoc table.kv td{padding:7px 9px;font-size:13.5px;vertical-align:top;border-bottom:1px solid #efeadd}
+#reportDoc table.kv tr:nth-child(even){background:#faf8f2}
+#reportDoc table.kv td.k{color:#8a8472;width:44%;font-family:'Fraunces';font-size:12px}
+#reportDoc table.kv td.v{color:#2f2e29;font-weight:400}
+#reportDoc .imgs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 6px}
+#reportDoc .imgs figure{margin:0;border:1px solid #e8e2d2;border-radius:10px;overflow:hidden;background:#faf8f2}
+#reportDoc .imgs img{width:100%;display:block;height:auto;object-fit:contain}
+#reportDoc .imgs figcaption{font-size:11.5px;color:#8a8472;padding:7px 9px;font-style:italic;border-top:1px solid #efeadd}
+#reportDoc .empty{font-size:13px;color:#bcb49d;font-style:italic;padding:8px 0}
+#reportDoc .foot{padding:24px 44px 30px;border-top:1px solid #efeadd;font-size:11px;color:#a39c87;text-align:center;font-family:'Fraunces';letter-spacing:.03em}
+.html2pdf__page-break{page-break-before:always}
 
 /* tabbar */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(242,240,232,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding:8px 0 calc(8px + env(safe-area-inset-bottom));display:flex;justify-content:space-around}
@@ -371,17 +418,35 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </span>
   </div>
 
-  <!-- ======= HOME VIEW ======= -->
-  <section class="view active" id="view-home">
+  <!-- ======= PROJEKT VIEW ======= -->
+  <section class="view active" id="view-projects">
     <div class="hero">
       <svg class="mark" viewBox="0 0 30 42" fill="none"><path d="M15 1C7 12 3 22 3 30a12 12 0 0 0 24 0c0-8-4-18-12-29Z" fill="var(--theme)" opacity=".9"/><path d="M15 6v32" stroke="var(--bg)" stroke-width="1.4" opacity=".5"/></svg>
       <div class="logo">L<span class="i">a</span>czy<span class="togo">ToGo</span></div>
-      <div class="kicker">Baustellenaufnahme · Vor Ort</div>
-      <p class="lede"><b>Aufnehmen, nicht abtippen.</b> Modulare Datenaufnahme für Gebäudeenergieberatung — offline, mit Fotos & Skizzen. Am Ende: ein sauberes PDF.</p>
+      <div class="kicker">Projekte · Baustellenaufnahme</div>
+    </div>
+    <div class="divider"><span>Deine Projekte</span></div>
+    <div class="proj-list" id="projList"></div>
+    <button class="proj-new" id="projNew">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Neues Projekt
+    </button>
+    <div class="foot">Laczy ToGo · Daten bleiben lokal auf dem Gerät</div>
+  </section>
+
+  <!-- ======= HOME VIEW (Module eines Projekts) ======= -->
+  <section class="view" id="view-home">
+    <div class="mod-head" style="padding-bottom:6px">
+      <button class="backbtn" id="toProjects">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"/></svg>
+        Alle Projekte
+      </button>
+      <span class="proj-tag" id="projTag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="projTagName">Projekt</span></span>
+      <h2 class="mod-title" id="projHeadName" style="margin-top:6px">Projekt</h2>
     </div>
     <div class="divider"><span>Module</span></div>
     <div class="grid" id="grid"></div>
-    <div class="foot">Laczy ToGo · v0.2 · Stammdaten aktiv</div>
+    <div class="foot">Laczy ToGo · alle Bereiche der Dena-Checkliste</div>
   </section>
 
   <!-- ======= MODULE VIEW ======= -->
@@ -493,6 +558,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="report-scroll"><div id="reportDoc"></div></div>
 </div>
 
+<!-- Bestätigungs-Dialog (ersetzt natives confirm, das in PWAs unzuverlässig ist) -->
+<div class="confirm-ov" id="confirmOv">
+  <div class="confirm-box">
+    <h3 id="confirmTitle">Bestätigen</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-row">
+      <button class="cancel" id="confirmCancel">Abbrechen</button>
+      <button class="ok" id="confirmOk">Löschen</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    LACZY TOGO — Datenmodell + Module
@@ -504,7 +581,7 @@ let DATA = { stammdaten: {}, 'oberer-abschluss': { _parts: [] }, 'wand': { _part
    Eine laufende Aufnahme, Auto-Save mit sichtbarem Status.
    ========================================================= */
 const STORE = (()=> {
-  const DB='laczy_togo', VER=1, KEY='current';
+  const DB='laczy_togo', VER=1;
   let db=null, available=true;
   function open(){
     return new Promise((res)=>{
@@ -517,38 +594,86 @@ const STORE = (()=> {
       }catch(e){ available=false; res(null); }
     });
   }
-  async function save(obj){
-    if(!available) return false;
-    if(!db) await open();
-    if(!db) return false;
-    return new Promise(res=>{
-      try{
-        const tx=db.transaction('aufnahme','readwrite');
-        tx.objectStore('aufnahme').put({data:obj, ts:Date.now()}, KEY);
-        tx.oncomplete=()=>res(true);
-        tx.onerror=()=>res(false);
-      }catch(e){ res(false); }
+  function put(key,val){
+    if(!available) return Promise.resolve(false);
+    return (db?Promise.resolve():open()).then(()=>{
+      if(!db) return false;
+      return new Promise(res=>{
+        try{ const tx=db.transaction('aufnahme','readwrite'); tx.objectStore('aufnahme').put(val,key); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }
+        catch(e){ res(false); }
+      });
     });
   }
-  async function load(){
-    if(!available) return null;
-    if(!db) await open();
-    if(!db) return null;
-    return new Promise(res=>{
-      try{
-        const tx=db.transaction('aufnahme','readonly');
-        const rq=tx.objectStore('aufnahme').get(KEY);
-        rq.onsuccess=()=>res(rq.result||null);
-        rq.onerror=()=>res(null);
-      }catch(e){ res(null); }
+  function get(key){
+    if(!available) return Promise.resolve(null);
+    return (db?Promise.resolve():open()).then(()=>{
+      if(!db) return null;
+      return new Promise(res=>{
+        try{ const tx=db.transaction('aufnahme','readonly'); const rq=tx.objectStore('aufnahme').get(key); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }
+        catch(e){ res(null); }
+      });
     });
   }
-  async function clear(){
-    if(!available||!db) return;
-    try{ const tx=db.transaction('aufnahme','readwrite'); tx.objectStore('aufnahme').delete(KEY); }catch(e){}
+  function del(key){
+    if(!available) return Promise.resolve();
+    return (db?Promise.resolve():open()).then(()=>{
+      if(!db) return;
+      return new Promise(res=>{ try{ const tx=db.transaction('aufnahme','readwrite'); tx.objectStore('aufnahme').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }catch(e){ res(); } });
+    });
   }
-  return {open,save,load,clear,isAvailable:()=>available};
+  return {open,put,get,del,isAvailable:()=>available};
 })();
+
+/* ---- Projekt-Verwaltung ----
+   Index: Liste {id,name,created,updated} unter 'index'
+   Projektdaten: unter 'proj:<id>' */
+let PROJECTS = [];          // Index-Liste
+let CURRENT_PROJECT = null; // {id,name,...}
+
+function emptyData(){
+  return { stammdaten:{}, 'oberer-abschluss':{_parts:[]}, 'wand':{_parts:[]}, 'grund':{_parts:[]}, 'anlagentechnik':{_parts:[]}, 'lueftung-pv':{_parts:[]} };
+}
+function normalizeData(d){
+  const base=emptyData();
+  const merged=Object.assign(base, d||{});
+  ['oberer-abschluss','wand','grund','anlagentechnik','lueftung-pv'].forEach(k=>{ if(!merged[k]||!Array.isArray(merged[k]._parts)) merged[k]={_parts:[]}; });
+  if(!merged.stammdaten||typeof merged.stammdaten!=='object') merged.stammdaten={};
+  return merged;
+}
+async function loadProjectIndex(){
+  const rec=await STORE.get('index');
+  PROJECTS = (rec && Array.isArray(rec.list)) ? rec.list : [];
+}
+async function saveProjectIndex(){
+  await STORE.put('index', {list:PROJECTS, ts:Date.now()});
+}
+async function createProject(name){
+  const id='prj_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const entry={id, name:name.trim()||'Neues Projekt', created:Date.now(), updated:Date.now()};
+  PROJECTS.unshift(entry);
+  await saveProjectIndex();
+  await STORE.put('proj:'+id, {data:emptyData(), ts:Date.now()});
+  return entry;
+}
+async function openProject(id){
+  const entry=PROJECTS.find(p=>p.id===id);
+  if(!entry) return false;
+  const rec=await STORE.get('proj:'+id);
+  DATA = normalizeData(rec && rec.data);
+  CURRENT_PROJECT = entry;
+  _lastSaved = (rec && rec.ts) || Date.now();
+  return true;
+}
+async function deleteProject(id){
+  await STORE.del('proj:'+id);
+  PROJECTS = PROJECTS.filter(p=>p.id!==id);
+  await saveProjectIndex();
+  if(CURRENT_PROJECT && CURRENT_PROJECT.id===id) CURRENT_PROJECT=null;
+}
+async function renameProject(id,newName){
+  const entry=PROJECTS.find(p=>p.id===id);
+  if(entry){ entry.name=newName.trim()||entry.name; entry.updated=Date.now(); await saveProjectIndex(); }
+}
 
 /* ---- Auto-Save mit Status-Anzeige ---- */
 let _saveTimer=null, _lastSaved=null, _relTimer=null;
@@ -562,11 +687,15 @@ function setSaveState(state, text){
   t.textContent=text;
 }
 function scheduleSave(){
+  if(!CURRENT_PROJECT) return; // nichts offen → nichts speichern
   if(!STORE.isAvailable()){ setSaveState('', 'Nur diese Sitzung'); return; }
   setSaveState('saving','Speichert …');
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(async()=>{
-    const ok=await STORE.save(DATA);
+    const ok=await STORE.put('proj:'+CURRENT_PROJECT.id, {data:DATA, ts:Date.now()});
+    // Index-Zeitstempel aktualisieren
+    const entry=PROJECTS.find(p=>p.id===CURRENT_PROJECT.id);
+    if(entry){ entry.updated=Date.now(); saveProjectIndex(); }
     if(ok){ _lastSaved=Date.now(); updateRelTime(); }
     else setSaveState('', 'Nur diese Sitzung');
   }, 800);
@@ -580,23 +709,103 @@ function updateRelTime(){
   else { const m=Math.round(s/60); txt='Gespeichert vor '+m+' Min.'; }
   setSaveState('saved', txt);
 }
-setInterval(()=>{ if(_lastSaved) updateRelTime(); }, 15000);
+setInterval(()=>{ if(_lastSaved && CURRENT_PROJECT) updateRelTime(); }, 15000);
 
-/* beim Start: vorhandene Aufnahme laden */
+/* beim Start: Projektliste laden und Projekt-Auswahl zeigen */
 async function initStore(){
   await STORE.open();
-  if(!STORE.isAvailable()){ setSaveState('', 'Nur diese Sitzung'); return; }
-  const rec=await STORE.load();
-  if(rec && rec.data){
-    // geladene Daten ins Modell übernehmen (Struktur absichern)
-    DATA = Object.assign({ stammdaten:{}, 'oberer-abschluss':{_parts:[]}, 'wand':{_parts:[]}, 'grund':{_parts:[]}, 'anlagentechnik':{_parts:[]}, 'lueftung-pv':{_parts:[]} }, rec.data);
-    ['oberer-abschluss','wand','grund','anlagentechnik','lueftung-pv'].forEach(k=>{ if(!DATA[k]||!Array.isArray(DATA[k]._parts)) DATA[k]={_parts:[]}; });
-    _lastSaved=rec.ts||Date.now();
-    updateRelTime();
-    renderHome();
-  } else {
-    setSaveState('', 'Bereit');
+  if(!STORE.isAvailable()){
+    setSaveState('', 'Nur diese Sitzung');
+    // Ohne Speicher: ein temporäres Projekt anlegen, damit die App nutzbar ist
+    CURRENT_PROJECT={id:'temp',name:'Temporäre Aufnahme'};
+    DATA=emptyData();
+    renderProjects();
+    return;
   }
+  await loadProjectIndex();
+  renderProjects();
+}
+
+/* ---- Projekt-Ansicht rendern ---- */
+function projectCompletion(){
+  // grober Gesamtfortschritt über alle Module des aktuell geladenen DATA
+  // (nur sinnvoll fürs offene Projekt; für Liste nutzen wir gespeicherte Quote)
+  return 0;
+}
+function renderProjects(){
+  const list=document.getElementById('projList');
+  list.innerHTML='';
+  if(!PROJECTS.length){
+    const e=document.createElement('div');
+    e.className='proj-empty';
+    e.innerHTML='Noch keine Projekte.<br>Lege dein erstes Projekt an, um mit der Aufnahme zu beginnen.';
+    list.appendChild(e);
+    return;
+  }
+  PROJECTS.forEach(p=>{
+    const card=document.createElement('button');
+    card.className='proj-card';
+    const datum=new Date(p.updated||p.created).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const pct=(typeof p.pct==='number')?p.pct:0;
+    card.innerHTML=`
+      <span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+      <span class="pinfo">
+        <b>${escapeHtml(p.name)}</b>
+        <span>Zuletzt bearbeitet ${datum}</span>
+        <span class="pprog"><span class="pbar"><i style="width:${pct}%"></i></span><span class="ppct">${pct}%</span></span>
+      </span>
+      <span class="pdel" title="Projekt löschen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></span>`;
+    // Öffnen
+    card.addEventListener('click',async(e)=>{
+      if(e.target.closest('.pdel')) return;
+      await openProject(p.id);
+      enterProject();
+    });
+    // Löschen (mit Bestätigung)
+    card.querySelector('.pdel').addEventListener('click',(e)=>{
+      e.stopPropagation();
+      askConfirm('Projekt löschen?', '„'+p.name+'" wird mit allen Eingaben, Fotos und Skizzen unwiderruflich gelöscht.', async()=>{
+        await deleteProject(p.id);
+        renderProjects();
+      });
+    });
+    list.appendChild(card);
+  });
+}
+
+/* Neues Projekt anlegen (mit Namens-Dialog) */
+document.getElementById('projNew').addEventListener('click',()=>{
+  askName('Neues Projekt', 'Wie soll das Projekt heißen?', '', async(name)=>{
+    if(!name || !name.trim()) return;
+    const entry=await createProject(name);
+    await openProject(entry.id);
+    enterProject();
+  });
+});
+document.getElementById('toProjects').addEventListener('click',()=>{
+  // Fortschritt des Projekts im Index sichern, dann zur Liste
+  updateProjectPct();
+  switchView('projects');
+  renderProjects();
+});
+
+/* In ein geöffnetes Projekt wechseln */
+function enterProject(){
+  document.getElementById('projTagName').textContent=CURRENT_PROJECT.name;
+  document.getElementById('projHeadName').textContent=CURRENT_PROJECT.name;
+  updateRelTime();
+  switchView('home');
+  renderHome();
+}
+
+/* Gesamtfortschritt des offenen Projekts berechnen & im Index ablegen */
+function updateProjectPct(){
+  if(!CURRENT_PROJECT) return;
+  let sum=0,n=0;
+  MODULES.forEach(m=>{ if(m.status==='ready'){ sum+=completion(m.id); n++; } });
+  const pct=n?Math.round(sum/n):0;
+  const entry=PROJECTS.find(p=>p.id===CURRENT_PROJECT.id);
+  if(entry){ entry.pct=pct; saveProjectIndex(); }
 }
 
 /* ---- Modul-Liste der Startseite ---- */
@@ -1113,8 +1322,8 @@ function renderInstance(modId,def,inst,idx){
   const el=document.createElement('div');
   el.className='inst'; el.dataset.pid=inst._id;
   const pct = tdef ? instanceCompletion(def,inst) : 0;
-  const title = inst.name || (tdef ? tdef.label : 'Neues Bauteil');
-  const sub = tdef ? tdef.label : 'Typ wählen';
+  const title = escapeHtml(inst.name || (tdef ? tdef.label : 'Neues Bauteil'));
+  const sub = escapeHtml(tdef ? tdef.label : 'Typ wählen');
   const icon = tdef ? tdef.icon : '<path d="M12 5v14M5 12h14"/>';
   el.innerHTML=`
     <div class="inst-head">
@@ -1166,18 +1375,19 @@ function buildInstanceInner(modId,def,inst,inner,el){
     tdef.fields.forEach(f=>inner.appendChild(renderFieldCtx(inst,f,()=>refreshInstance(modId,def,inst,el))));
     // 4) gemeinsame Felder (Foto/Skizze/Notiz)
     def.commonFields.forEach(f=>inner.appendChild(renderFieldCtx(inst,f,()=>refreshInstance(modId,def,inst,el))));
-    // 5) Löschen
-    const del=document.createElement('button'); del.className='inst-del';
-    del.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg> Bauteil löschen';
-    del.addEventListener('click',()=>{
-      if(confirm('Dieses Bauteil wirklich löschen?')){
-        DATA[modId]._parts = DATA[modId]._parts.filter(p=>p._id!==inst._id);
-        scheduleSave();
-        openModule(modId);
-      }
-    });
-    inner.appendChild(del);
   }
+  // 5) Löschen — IMMER verfügbar (auch ohne gewählten Typ)
+  const del=document.createElement('button'); del.className='inst-del';
+  del.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg> Bauteil löschen';
+  del.addEventListener('click',()=>{
+    const label = inst.name || (tdef?tdef.label:'dieses Bauteil');
+    askConfirm('Bauteil löschen?', '„'+label+'" wird mit allen Eingaben, Fotos und Skizzen entfernt.', ()=>{
+      DATA[modId]._parts = DATA[modId]._parts.filter(p=>p._id!==inst._id);
+      scheduleSave();
+      openModule(modId);
+    });
+  });
+  inner.appendChild(del);
   applyConditionalCtx(inner,inst);
 }
 
@@ -1344,6 +1554,60 @@ function renderPhotoField(obj,f,onChange){
 
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
+/* ===== Einheitlicher Dialog: Bestätigung ODER Namenseingabe =====
+   (zuverlässiger als natives confirm/prompt, besonders in installierten PWAs) */
+let _dlgMode='confirm', _dlgCb=null;
+function _dlgEls(){
+  return {
+    ov:document.getElementById('confirmOv'),
+    box:document.querySelector('#confirmOv .confirm-box'),
+    title:document.getElementById('confirmTitle'),
+    msg:document.getElementById('confirmMsg'),
+    ok:document.getElementById('confirmOk'),
+    cancel:document.getElementById('confirmCancel')
+  };
+}
+function _dlgClose(){
+  const e=_dlgEls();
+  e.ov.classList.remove('show');
+  const inp=e.box.querySelector('input.pname'); if(inp) inp.remove();
+  _dlgCb=null; _dlgMode='confirm';
+}
+function askConfirm(title, msg, onOk, okLabel){
+  const e=_dlgEls();
+  e.title.textContent=title; e.msg.textContent=msg;
+  e.ok.textContent=okLabel||'Löschen';
+  _dlgMode='confirm'; _dlgCb=onOk;
+  e.ov.classList.add('show');
+}
+function askName(title, msg, preset, onOk){
+  const e=_dlgEls();
+  e.title.textContent=title; e.msg.textContent=msg;
+  let inp=e.box.querySelector('input.pname');
+  if(!inp){ inp=document.createElement('input'); inp.className='pname'; inp.type='text'; inp.placeholder='Projektname'; e.box.insertBefore(inp, e.box.querySelector('.confirm-row')); }
+  inp.value=preset||'';
+  e.ok.textContent='Anlegen';
+  _dlgMode='name'; _dlgCb=onOk;
+  e.ov.classList.add('show');
+  setTimeout(()=>inp.focus(),60);
+  inp.onkeydown=ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); _dlgConfirm(); } };
+}
+function _dlgConfirm(){
+  const e=_dlgEls();
+  if(_dlgMode==='name'){
+    const inp=e.box.querySelector('input.pname');
+    const val=inp?inp.value:'';
+    const cb=_dlgCb; _dlgClose();
+    if(cb) cb(val);
+  } else {
+    const cb=_dlgCb; _dlgClose();
+    if(cb) cb();
+  }
+}
+document.getElementById('confirmOk').addEventListener('click',_dlgConfirm);
+document.getElementById('confirmCancel').addEventListener('click',_dlgClose);
+document.getElementById('confirmOv').addEventListener('click',e=>{ if(e.target.id==='confirmOv') _dlgClose(); });
+
 let _pendingPhoto=null;
 function pickPhotos(mode,obj,f,redraw,label,onChange){
   const input = mode==='camera' ? document.getElementById('fileCamera') : document.getElementById('fileGallery');
@@ -1403,11 +1667,11 @@ function closeLightbox(){
 document.getElementById('lbCap').addEventListener('input',e=>{ if(_lb){ _lb.obj[_lb.f.k][_lb.idx].cap=e.target.value; } });
 document.getElementById('lbDelete').addEventListener('click',()=>{
   if(!_lb) return;
-  if(confirm('Dieses Foto löschen?')){
+  askConfirm('Foto löschen?','Dieses Foto wird aus der Aufnahme entfernt.',()=>{
     _lb.obj[_lb.f.k].splice(_lb.idx,1);
     _lb.redraw(); if(_lb.onChange)_lb.onChange();
     document.getElementById('lightbox').classList.remove('show'); _lb=null;
-  }
+  });
 });
 
 /* =========================================================
@@ -1785,17 +2049,17 @@ function fmtValue(f,val){
 function buildReport(){
   const doc=document.getElementById('reportDoc');
   const sd=DATA.stammdaten||{};
-  const objName = sd.kategorie ? (sd.kategorie+(sd.g_strasse?' · '+sd.g_strasse:'')) : (sd.g_strasse||sd.strasse||'Objekt ohne Bezeichnung');
+  const objName = sd.kategorie ? (sd.kategorie+(sd.g_strasse?', '+sd.g_strasse:'')) : (sd.g_strasse||sd.strasse||'Objekt ohne Bezeichnung');
   const today=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'});
 
   let html='';
-  // ---- Deckblatt ----
-  html+=`<div class="cover">
-    <svg class="leaf" viewBox="0 0 30 42" fill="none"><path d="M15 1C7 12 3 22 3 30a12 12 0 0 0 24 0c0-8-4-18-12-29Z" fill="${'#a8392f'}" opacity=".9"/></svg>
-    <div class="ttl">L<span class="i">a</span>czy<span class="togo">ToGo · Datenaufnahme</span></div>
-    <div class="sub">Gebäude-Energieberatung · Baustellenaufnahme</div>
-    <div class="obj">${escapeHtml(objName)}</div>
-    <div class="meta">
+  // ---- Deckblatt (eigene Seite, in Farbe) ----
+  html+=`<div class="pdf-page cover-page"><div class="inner">
+    <svg class="cover-leaf" viewBox="0 0 30 42" fill="none"><path d="M15 1C7 12 3 22 3 30a12 12 0 0 0 24 0c0-8-4-18-12-29Z" fill="#a8392f"/><path d="M15 6v30" stroke="#f2f0e8" stroke-width="1.4" opacity=".5"/></svg>
+    <div class="cover-brand">L<span class="i">a</span>czy<span class="cover-togo">ToGo</span></div>
+    <div class="cover-kicker">Datenaufnahme · Gebäude-Energieberatung</div>
+    <div class="cover-obj">${escapeHtml(objName)}</div>
+    <div class="cover-meta">
       ${coverRow('Objektadresse', [sd.g_strasse,sd.g_plzort].filter(Boolean).join(', '))}
       ${coverRow('Gebäudekategorie', sd.kategorie)}
       ${coverRow('Baujahr', sd.baujahr)}
@@ -1803,15 +2067,23 @@ function buildReport(){
       ${coverRow('Eigentümer', sd.name)}
       ${coverRow('Kontakt', [sd.tel,sd.email].filter(Boolean).join(' · '))}
     </div>
-    <div class="date">Aufnahmedatum: ${today}</div>
-  </div>`;
+    <div class="cover-spacer"></div>
+    <div class="cover-foot">
+      <div>Laczy ToGo · Baustellenaufnahme</div>
+      <div class="date">${today}</div>
+    </div>
+  </div></div>`;
 
-  // ---- Module ----
+  // ---- Module (jedes auf neuer Seite) ----
+  let modNr=0;
   MODULES.forEach(m=>{
     if(m.status!=='ready') return;
+    modNr++;
     const def=MODULE_DEFS[m.id];
-    html+=`<div class="mod-block"><div class="pg">`;
-    html+=`<h2 class="mod">${escapeHtml(def.title)}</h2>`;
+    html+=`<div class="html2pdf__page-break"></div>`;
+    html+=`<div class="mod-block"><div class="inner">`;
+    html+=`<h2 class="mod"><span class="mn">${modNr}</span>${escapeHtml(def.title)}</h2>`;
+    html+=`<div class="mod-rule"></div>`;
     if(def.sub) html+=`<div class="mod-intro">${escapeHtml(def.sub)}</div>`;
     if(def.kind==='form'){
       html+=renderFormReport(m.id,def);
@@ -1821,7 +2093,7 @@ function buildReport(){
     html+=`</div></div>`;
   });
 
-  html+=`<div class="foot">Erstellt mit Laczy ToGo · ${today} · Diese Aufnahme dient als Arbeitsgrundlage der Energieberatung.</div>`;
+  html+=`<div class="foot">Erstellt mit Laczy ToGo am ${today} · Diese Aufnahme dient als Arbeitsgrundlage der Energieberatung.</div>`;
   doc.innerHTML=html;
 }
 function coverRow(label,val){
@@ -1886,19 +2158,53 @@ function openReport(){
 }
 function closeReport(){ document.getElementById('report').classList.remove('show'); }
 document.getElementById('reportClose').addEventListener('click',closeReport);
-document.getElementById('reportPrint').addEventListener('click',()=>window.print());
 document.getElementById('tabReport').addEventListener('click',openReport);
 document.getElementById('tabHome').addEventListener('click',()=>{ closeReport(); switchView('home'); });
 
+/* ---- Echter PDF-Download via html2pdf (offline, lokal gebündelt) ---- */
+document.getElementById('reportPrint').addEventListener('click',async()=>{
+  const btn=document.getElementById('reportPrint');
+  const orig=btn.innerHTML;
+  if(typeof html2pdf==='undefined'){
+    // Fallback, falls Bibliothek nicht geladen (z.B. lokal ohne die JS-Datei)
+    window.print(); return;
+  }
+  btn.disabled=true;
+  btn.innerHTML='<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9"/></svg>Erstelle PDF …';
+  const sd=DATA.stammdaten||{};
+  const objPart=(sd.g_strasse||sd.kategorie||'Aufnahme').replace(/[^\wäöüÄÖÜß -]/g,'').trim().replace(/\s+/g,'_');
+  const datePart=new Date().toISOString().slice(0,10);
+  const filename=`LaczyToGo_${objPart}_${datePart}.pdf`;
+  const doc=document.getElementById('reportDoc');
+  const opt={
+    margin:0,
+    filename:filename,
+    image:{type:'jpeg',quality:0.92},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+    pagebreak:{mode:['css','legacy'],avoid:['figure','tr','h2','h3','h4']}
+  };
+  try{
+    await html2pdf().set(opt).from(doc).save();
+  }catch(e){
+    alert('PDF konnte nicht erstellt werden. Bitte erneut versuchen.');
+  }
+  btn.disabled=false; btn.innerHTML=orig;
+});
+
 /* ============ VIEW SWITCH ============ */
 function switchView(name){
+  document.getElementById('view-projects').classList.toggle('active',name==='projects');
   document.getElementById('view-home').classList.toggle('active',name==='home');
   document.getElementById('view-module').classList.toggle('active',name==='module');
+  // Tabbar nur in Projekt-Modulen sichtbar (nicht in der Projektliste)
   document.getElementById('tabbar').style.display = name==='home'?'flex':'none';
   document.getElementById('savebar').classList.toggle('show',name==='module');
-  document.getElementById('status').style.visibility = name==='home'?'visible':'hidden';
+  // Speicher-Status nur sichtbar, wenn ein Projekt offen ist
+  document.getElementById('saveState').style.visibility = (name==='home') ? 'visible' : 'hidden';
+  document.getElementById('status').style.visibility = (name==='projects') ? 'visible' : 'hidden';
   window.scrollTo(0,0);
-  if(name==='home') renderHome();
+  if(name==='home'){ renderHome(); }
   if(name==='module') applyConditional();
 }
 document.getElementById('backBtn').addEventListener('click',()=>switchView('home'));
@@ -1927,7 +2233,7 @@ function updNet(){
 }
 window.addEventListener('online',updNet);
 window.addEventListener('offline',updNet);
-updNet(); renderHome();
+updNet();
 initStore();
 
 /* Service-Worker registrieren (macht die App offline-installierbar).

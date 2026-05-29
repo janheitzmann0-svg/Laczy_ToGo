@@ -7,12 +7,14 @@ Eine offline-fähige Web-App (PWA) zur Baustellenaufnahme für die Gebäudeenerg
 | Datei | Zweck |
 |---|---|
 | `index.html` | Die App selbst (alles in einer Datei) |
+| `html2pdf.bundle.min.js` | PDF-Bibliothek (für den direkten PDF-Download, offline) |
 | `manifest.json` | Macht die App installierbar (Name, Icon, Farben) |
 | `sw.js` | Service-Worker — sorgt für Offline-Betrieb |
 | `icon-192.png`, `icon-512.png` | App-Icons für den Startbildschirm |
 | `icon-maskable-512.png` | Android-Icon (passt sich der Icon-Form an) |
 | `apple-touch-icon.png` | App-Icon für iPhone/iPad |
 | `favicon-32.png` | Browser-Tab-Symbol |
+| `SICHERHEITSKONZEPT.md` | Sicherheits- & Datenschutzkonzept für den Betrieb |
 
 **Wichtig:** Alle Dateien müssen zusammen im selben Ordner liegen.
 

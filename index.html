@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <!-- Sicherheit: Content-Security-Policy beschränkt, welche Quellen geladen/ausgeführt werden dürfen.
-     Schützt vor eingeschleustem Fremdcode (XSS). Nur eigene Dateien + Google Fonts erlaubt. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+     'unsafe-eval' ist nötig, weil die PDF-Engine (html2canvas) intern Code-Auswertung nutzt.
+     Schützt weiterhin vor dem Laden von Fremdcode aus dem Netz (nur eigene Dateien + Google Fonts). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -362,7 +363,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ---- Deckblatt (vollflächig, in Farbe) ---- */
 .cover-page{background:linear-gradient(165deg,#faf8f1 0%,#f0ebdd 55%,#e9e2d1 100%);position:relative}
 .cover-page::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:linear-gradient(90deg,var(--theme),var(--theme-soft))}
-.cover-page .inner{padding:60px 48px 70px;min-height:920px;display:flex;flex-direction:column}
+.cover-page .inner{padding:60px 48px 70px;min-height:980px;display:flex;flex-direction:column;box-sizing:border-box}
 .cover-leaf{width:54px;height:74px;margin-bottom:18px}
 .cover-brand{font-family:'Fraunces';font-size:58px;line-height:.9;color:#2f2e29;letter-spacing:-.01em}
 .cover-brand .i{font-style:italic;color:var(--theme)}
@@ -2162,34 +2163,77 @@ document.getElementById('tabReport').addEventListener('click',openReport);
 document.getElementById('tabHome').addEventListener('click',()=>{ closeReport(); switchView('home'); });
 
 /* ---- Echter PDF-Download via html2pdf (offline, lokal gebündelt) ---- */
+/* Wartet, bis alle Bilder im Container geladen sind (verhindert Abstürze) */
+function waitForImages(container){
+  const imgs=[...container.querySelectorAll('img')];
+  return Promise.all(imgs.map(img=>{
+    if(img.complete && img.naturalWidth>0) return Promise.resolve();
+    return new Promise(res=>{
+      img.addEventListener('load',res,{once:true});
+      img.addEventListener('error',res,{once:true}); // auch bei Fehler weiter
+      setTimeout(res,1500); // Notbremse pro Bild
+    });
+  }));
+}
+let _pdfRunning=false;
 document.getElementById('reportPrint').addEventListener('click',async()=>{
+  if(_pdfRunning) return;           // Doppelklick-Schutz
   const btn=document.getElementById('reportPrint');
   const orig=btn.innerHTML;
+
+  // Bibliothek nicht da? → sauberer Fallback auf Druckdialog
   if(typeof html2pdf==='undefined'){
-    // Fallback, falls Bibliothek nicht geladen (z.B. lokal ohne die JS-Datei)
-    window.print(); return;
+    alert('Die PDF-Funktion ist offline noch nicht geladen. Es wird der Druck-Dialog geöffnet — dort „Als PDF speichern" wählen.');
+    try{ window.print(); }catch(e){}
+    return;
   }
+
+  _pdfRunning=true;
   btn.disabled=true;
   btn.innerHTML='<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9"/></svg>Erstelle PDF …';
+
   const sd=DATA.stammdaten||{};
-  const objPart=(sd.g_strasse||sd.kategorie||'Aufnahme').replace(/[^\wäöüÄÖÜß -]/g,'').trim().replace(/\s+/g,'_');
+  const objPart=((sd.g_strasse||sd.kategorie||'Aufnahme')+'').replace(/[^\wäöüÄÖÜß -]/g,'').trim().replace(/\s+/g,'_')||'Aufnahme';
   const datePart=new Date().toISOString().slice(0,10);
   const filename=`LaczyToGo_${objPart}_${datePart}.pdf`;
   const doc=document.getElementById('reportDoc');
+
   const opt={
-    margin:0,
+    margin:[0,0,0,0],
     filename:filename,
-    image:{type:'jpeg',quality:0.92},
-    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
-    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-    pagebreak:{mode:['css','legacy'],avoid:['figure','tr','h2','h3','h4']}
+    image:{type:'jpeg',quality:0.9},
+    html2canvas:{scale:1.6,useCORS:true,backgroundColor:'#ffffff',logging:false,
+                 windowWidth:doc.scrollWidth, scrollX:0, scrollY:0, imageTimeout:5000},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
+    pagebreak:{mode:['css','legacy']}
   };
+
+  // Sicherheits-Timeout: falls die Engine hängt, App nicht blockieren
+  let finished=false;
+  const safety=setTimeout(()=>{
+    if(!finished){
+      _pdfRunning=false; btn.disabled=false; btn.innerHTML=orig;
+      alert('Die PDF-Erstellung dauert ungewöhnlich lange. Bitte bei sehr vielen Fotos das PDF in kleineren Aufnahmen erstellen.');
+    }
+  }, 60000);
+
   try{
+    await waitForImages(doc);     // erst wenn alle Bilder geladen sind
     await html2pdf().set(opt).from(doc).save();
+    finished=true;
   }catch(e){
-    alert('PDF konnte nicht erstellt werden. Bitte erneut versuchen.');
+    finished=true;
+    console.error('PDF-Fehler:', e);
+    // Fallback: Druckdialog anbieten statt nur Fehlermeldung
+    if(confirm('Direkter PDF-Download hat nicht geklappt. Soll stattdessen der Druck-Dialog geöffnet werden? (Dort „Als PDF speichern" wählen)')){
+      try{ window.print(); }catch(_){}
+    }
+  }finally{
+    clearTimeout(safety);
+    _pdfRunning=false;
+    btn.disabled=false;
+    btn.innerHTML=orig;
   }
-  btn.disabled=false; btn.innerHTML=orig;
 });
 
 /* ============ VIEW SWITCH ============ */

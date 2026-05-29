@@ -41,7 +41,7 @@ Damit ist die Angriffsfläche minimal: Es gibt keine zentrale Datenbank, die kom
 
 | Maßnahme | Schutz vor | Status |
 |---|---|---|
-| **Content-Security-Policy (CSP)** | Einschleusen & Ausführen von Fremdcode (XSS) | ✅ aktiv |
+| **Content-Security-Policy (CSP)** | Laden von Fremdcode aus dem Netz (XSS) | ✅ aktiv |
 | **Eingabe-Maskierung (HTML-Escaping)** | Schadcode über Eingabefelder (z. B. Bauteilnamen) | ✅ aktiv |
 | **X-Content-Type-Options: nosniff** | Fehlinterpretation von Dateitypen | ✅ aktiv |
 | **Referrer-Policy: no-referrer** | Weitergabe von Adressinformationen an Dritte | ✅ aktiv |

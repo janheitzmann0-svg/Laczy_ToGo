@@ -7,7 +7,7 @@ Eine offline-fähige Web-App (PWA) zur Baustellenaufnahme für die Gebäudeenerg
 | Datei | Zweck |
 |---|---|
 | `index.html` | Die App selbst (alles in einer Datei) |
-| `html2pdf.bundle.min.js` | PDF-Bibliothek (für den direkten PDF-Download, offline) |
+| `jspdf.umd.min.js` | PDF-Bibliothek (für den direkten PDF-Download, offline) |
 | `manifest.json` | Macht die App installierbar (Name, Icon, Farben) |
 | `sw.js` | Service-Worker — sorgt für Offline-Betrieb |
 | `icon-192.png`, `icon-512.png` | App-Icons für den Startbildschirm |
@@ -82,7 +82,8 @@ Danach liegt Laczy ToGo als App-Icon (rotes Blatt) auf dem Startbildschirm und s
 
 Wenn du eine neue Version von `index.html` hochlädst:
 1. Neue Dateien ins Repository hochladen (überschreiben).
-2. In `sw.js` die Zeile `const CACHE_VERSION = 'laczy-togo-v1';` erhöhen (z. B. `-v2`).
+2. **Falls noch vorhanden:** die alte Datei `html2pdf.bundle.min.js` im Repository löschen — sie wird nicht mehr gebraucht (ersetzt durch `jspdf.umd.min.js`).
+3. In `sw.js` die Zeile `const CACHE_VERSION = 'laczy-togo-v5';` erhöhen (z. B. `-v6`).
    Das sorgt dafür, dass alle Geräte die neue Version laden statt der alten aus dem Cache.
 
 ---

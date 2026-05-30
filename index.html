@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <!-- Sicherheit: Content-Security-Policy beschränkt, welche Quellen geladen/ausgeführt werden dürfen.
-     'unsafe-eval' ist nötig, weil die PDF-Engine (html2canvas) intern Code-Auswertung nutzt.
-     Schützt weiterhin vor dem Laden von Fremdcode aus dem Netz (nur eigene Dateien + Google Fonts). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+     Schützt vor eingeschleustem Fremdcode (XSS). Nur eigene Dateien + Google Fonts erlaubt. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -16,7 +15,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="html2pdf.bundle.min.js"></script>
+<script src="jspdf.umd.min.js"></script>
 <title>Laczy ToGo — Baustellenaufnahme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2162,79 +2161,281 @@ document.getElementById('reportClose').addEventListener('click',closeReport);
 document.getElementById('tabReport').addEventListener('click',openReport);
 document.getElementById('tabHome').addEventListener('click',()=>{ closeReport(); switchView('home'); });
 
-/* ---- Echter PDF-Download via html2pdf (offline, lokal gebündelt) ---- */
-/* Wartet, bis alle Bilder im Container geladen sind (verhindert Abstürze) */
-function waitForImages(container){
-  const imgs=[...container.querySelectorAll('img')];
-  return Promise.all(imgs.map(img=>{
-    if(img.complete && img.naturalWidth>0) return Promise.resolve();
-    return new Promise(res=>{
-      img.addEventListener('load',res,{once:true});
-      img.addEventListener('error',res,{once:true}); // auch bei Fehler weiter
-      setTimeout(res,1500); // Notbremse pro Bild
-    });
-  }));
+/* ============================================================
+   PDF-ERSTELLUNG mit jsPDF — programmatisch, robust, offline.
+   Zeichnet Deckblatt, Tabellen & Bilder direkt (kein html2canvas).
+   ============================================================ */
+
+/* Laczy-Farben als RGB */
+const PDF_C = {
+  ink:[47,46,41], soft:[138,132,114], hair:[224,219,205],
+  theme:[168,57,47], themeDeep:[138,45,37], themeSoft:[196,107,95],
+  cream1:[250,248,241], cream2:[233,226,209], tint:[240,227,223], rowAlt:[250,248,242]
+};
+
+/* Bild-DataURL laden → {w,h} ermitteln (für korrektes Seitenverhältnis) */
+function imgSize(dataUrl){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>res({w:im.naturalWidth,h:im.naturalHeight});
+    im.onerror=()=>res(null);
+    im.src=dataUrl;
+  });
 }
+
 let _pdfRunning=false;
 document.getElementById('reportPrint').addEventListener('click',async()=>{
-  if(_pdfRunning) return;           // Doppelklick-Schutz
+  if(_pdfRunning) return;
   const btn=document.getElementById('reportPrint');
   const orig=btn.innerHTML;
 
-  // Bibliothek nicht da? → sauberer Fallback auf Druckdialog
-  if(typeof html2pdf==='undefined'){
-    alert('Die PDF-Funktion ist offline noch nicht geladen. Es wird der Druck-Dialog geöffnet — dort „Als PDF speichern" wählen.');
-    try{ window.print(); }catch(e){}
+  if(typeof window.jspdf==='undefined' || !window.jspdf.jsPDF){
+    alert('Die PDF-Funktion ist noch nicht geladen. Bitte die App einmal online öffnen, damit sie vollständig lädt.');
     return;
   }
 
-  _pdfRunning=true;
-  btn.disabled=true;
+  _pdfRunning=true; btn.disabled=true;
   btn.innerHTML='<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9"/></svg>Erstelle PDF …';
 
-  const sd=DATA.stammdaten||{};
-  const objPart=((sd.g_strasse||sd.kategorie||'Aufnahme')+'').replace(/[^\wäöüÄÖÜß -]/g,'').trim().replace(/\s+/g,'_')||'Aufnahme';
-  const datePart=new Date().toISOString().slice(0,10);
-  const filename=`LaczyToGo_${objPart}_${datePart}.pdf`;
-  const doc=document.getElementById('reportDoc');
-
-  const opt={
-    margin:[0,0,0,0],
-    filename:filename,
-    image:{type:'jpeg',quality:0.9},
-    html2canvas:{scale:1.6,useCORS:true,backgroundColor:'#ffffff',logging:false,
-                 windowWidth:doc.scrollWidth, scrollX:0, scrollY:0, imageTimeout:5000},
-    jsPDF:{unit:'mm',format:'a4',orientation:'portrait',compress:true},
-    pagebreak:{mode:['css','legacy']}
-  };
-
-  // Sicherheits-Timeout: falls die Engine hängt, App nicht blockieren
-  let finished=false;
-  const safety=setTimeout(()=>{
-    if(!finished){
-      _pdfRunning=false; btn.disabled=false; btn.innerHTML=orig;
-      alert('Die PDF-Erstellung dauert ungewöhnlich lange. Bitte bei sehr vielen Fotos das PDF in kleineren Aufnahmen erstellen.');
-    }
-  }, 60000);
-
   try{
-    await waitForImages(doc);     // erst wenn alle Bilder geladen sind
-    await html2pdf().set(opt).from(doc).save();
-    finished=true;
+    await generatePDF();
   }catch(e){
-    finished=true;
     console.error('PDF-Fehler:', e);
-    // Fallback: Druckdialog anbieten statt nur Fehlermeldung
-    if(confirm('Direkter PDF-Download hat nicht geklappt. Soll stattdessen der Druck-Dialog geöffnet werden? (Dort „Als PDF speichern" wählen)')){
-      try{ window.print(); }catch(_){}
-    }
+    alert('Beim Erstellen des PDF ist ein Fehler aufgetreten:\n'+(e&&e.message?e.message:e)+'\n\nBitte erneut versuchen.');
   }finally{
-    clearTimeout(safety);
-    _pdfRunning=false;
-    btn.disabled=false;
-    btn.innerHTML=orig;
+    _pdfRunning=false; btn.disabled=false; btn.innerHTML=orig;
   }
 });
+
+async function generatePDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+  const PW=210, PH=297, M=16;            // Seite & Rand (mm)
+  const CW=PW-2*M;                        // Inhaltsbreite
+  _pdfY=M;
+
+  const sd=DATA.stammdaten||{};
+  const objName = sd.kategorie ? (sd.kategorie+(sd.g_strasse?', '+sd.g_strasse:'')) : (sd.g_strasse||sd.strasse||'Objekt ohne Bezeichnung');
+  const today=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'});
+
+  /* Hilfen */
+  const setFill=c=>doc.setFillColor(c[0],c[1],c[2]);
+  const setText=c=>doc.setTextColor(c[0],c[1],c[2]);
+  const setDraw=c=>doc.setDrawColor(c[0],c[1],c[2]);
+
+  /* ---------- DECKBLATT ---------- */
+  // cremiger Hintergrund
+  setFill(PDF_C.cream1); doc.rect(0,0,PW,PH,'F');
+  setFill(PDF_C.cream2); doc.rect(0,PH*0.62,PW,PH*0.38,'F');
+  // roter Balken unten
+  setFill(PDF_C.theme); doc.rect(0,PH-6,PW,6,'F');
+  // Blatt-Symbol (rote Tropfenform)
+  setFill(PDF_C.theme);
+  doc.circle(PW/2, 70, 16, 'F');
+  doc.triangle(PW/2-16,70, PW/2+16,70, PW/2,44, 'F');
+  // Marke
+  setText(PDF_C.ink);
+  doc.setFont('times','normal'); doc.setFontSize(46);
+  doc.text('Laczy', PW/2, 108, {align:'center'});
+  setText(PDF_C.themeDeep);
+  doc.setFont('times','italic'); doc.setFontSize(15);
+  doc.text('T o G o', PW/2, 120, {align:'center'});
+  // Kicker
+  setText(PDF_C.soft); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('DATENAUFNAHME · GEBÄUDE-ENERGIEBERATUNG', PW/2, 138, {align:'center'});
+  // Objektname
+  setText(PDF_C.ink); doc.setFont('times','normal'); doc.setFontSize(22);
+  doc.text(doc.splitTextToSize(objName, CW), PW/2, 152, {align:'center'});
+  // Meta-Block
+  const meta=[
+    ['Objektadresse',[sd.g_strasse,sd.g_plzort].filter(Boolean).join(', ')],
+    ['Gebäudekategorie',sd.kategorie],
+    ['Baujahr',sd.baujahr],
+    ['Wohnfläche',sd.wohnflaeche?sd.wohnflaeche+' m²':''],
+    ['Eigentümer',sd.name],
+    ['Kontakt',[sd.tel,sd.email].filter(Boolean).join(' · ')]
+  ].filter(r=>r[1]);
+  let my=180; const colX=[M+8, PW/2+4];
+  meta.forEach((row,i)=>{
+    const cx=colX[i%2];
+    if(i%2===0 && i>0) my+=20;
+    setText(PDF_C.soft); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(String(row[0]).toUpperCase(), cx, my);
+    setText(PDF_C.ink); doc.setFont('helvetica','normal'); doc.setFontSize(11);
+    const lines=doc.splitTextToSize(String(row[1]), CW/2-12);
+    doc.text(lines, cx, my+5);
+  });
+  // Datum unten
+  setText(PDF_C.themeDeep); doc.setFont('times','italic'); doc.setFontSize(12);
+  doc.text('Aufnahmedatum: '+today, M, PH-14);
+  setText(PDF_C.soft); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Laczy ToGo · Baustellenaufnahme', PW-M, PH-14, {align:'right'});
+
+  /* ---------- MODULE ---------- */
+  let modNr=0;
+  for(const m of MODULES){
+    if(m.status!=='ready') continue;
+    modNr++;
+    const def=MODULE_DEFS[m.id];
+    doc.addPage(); _pdfY=M;
+
+    // Modul-Kopf
+    setText(PDF_C.theme); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(String(modNr), M, _pdfY+1);
+    setText(PDF_C.ink); doc.setFont('times','normal'); doc.setFontSize(20);
+    doc.text(def.title, M+8, _pdfY+2);
+    _pdfY+=5;
+    setDraw(PDF_C.theme); doc.setLineWidth(0.6); doc.line(M, _pdfY, PW-M, _pdfY);
+    _pdfY+=6;
+
+    if(def.kind==='form'){
+      await pdfFormModule(doc, m.id, def);
+    } else {
+      await pdfPartsModule(doc, m.id, def);
+    }
+  }
+
+  /* Fußzeile auf letzter Seite */
+  setText(PDF_C.soft); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text('Erstellt mit Laczy ToGo am '+today+' · Arbeitsgrundlage der Energieberatung', PW/2, PH-8, {align:'center'});
+
+  // Dateiname & speichern (robust, mit Fallback)
+  const objPart=((sd.g_strasse||sd.kategorie||'Aufnahme')+'').replace(/[^\wäöüÄÖÜß -]/g,'').trim().replace(/\s+/g,'_')||'Aufnahme';
+  const filename=`LaczyToGo_${objPart}_${new Date().toISOString().slice(0,10)}.pdf`;
+  try{
+    doc.save(filename);
+  }catch(e){
+    // Fallback: Blob erzeugen und über Link herunterladen
+    try{
+      const blob=doc.output('blob');
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    }catch(e2){
+      // Letzter Fallback: in neuem Tab öffnen
+      const dataUri=doc.output('datauristring');
+      const win=window.open(); if(win) win.location.href=dataUri;
+    }
+  }
+}
+
+/* y muss über Modul-Funktionen geteilt werden */
+let _pdfY=16;
+
+/* Tabelle Schlüssel/Wert zeichnen */
+function pdfKVTable(doc, rows){
+  const PW=210, M=16, PH=297, CW=PW-2*M;
+  const kW=CW*0.42;
+  rows.forEach((r,idx)=>{
+    const valLines=doc.splitTextToSize(String(r[1]), CW-kW-4);
+    const rowH=Math.max(7, valLines.length*5+2);
+    if(_pdfY+rowH>PH-M){ doc.addPage(); _pdfY=M; }
+    if(idx%2===1){ doc.setFillColor(250,248,242); doc.rect(M,_pdfY-1,CW,rowH,'F'); }
+    doc.setTextColor(138,132,114); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    doc.text(doc.splitTextToSize(String(r[0]),kW-3), M+1, _pdfY+4);
+    doc.setTextColor(47,46,41); doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(valLines, M+kW, _pdfY+4);
+    doc.setDrawColor(238,233,221); doc.setLineWidth(0.2); doc.line(M,_pdfY+rowH-1,PW-M,_pdfY+rowH-1);
+    _pdfY+=rowH;
+  });
+  _pdfY+=3;
+}
+
+/* Sektions-Überschrift */
+function pdfSectionTitle(doc, title){
+  const PW=210, M=16, PH=297;
+  if(_pdfY+10>PH-M){ doc.addPage(); _pdfY=M; }
+  doc.setFillColor(168,57,47); doc.circle(M+1.5,_pdfY+1.5,1.2,'F');
+  doc.setTextColor(138,45,37); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text(String(title).toUpperCase(), M+5, _pdfY+3);
+  _pdfY+=8;
+}
+/* Bauteil-Überschrift (mit Hintergrund) */
+function pdfPartTitle(doc, title){
+  const PW=210, M=16, PH=297, CW=PW-2*M;
+  if(_pdfY+12>PH-M){ doc.addPage(); _pdfY=M; }
+  doc.setFillColor(246,243,234); doc.rect(M,_pdfY,CW,9,'F');
+  doc.setFillColor(168,57,47); doc.rect(M,_pdfY,1.5,9,'F');
+  doc.setTextColor(47,46,41); doc.setFont('times','normal'); doc.setFontSize(13);
+  doc.text(title, M+4, _pdfY+6);
+  _pdfY+=13;
+}
+
+/* Bilder zeichnen (2 pro Reihe, voll sichtbar) */
+async function pdfImages(doc, items){
+  const PW=210, M=16, PH=297, CW=PW-2*M;
+  const gap=4, cellW=(CW-gap)/2, maxH=55;
+  let col=0, rowTopY=_pdfY, rowMaxH=0;
+  for(const it of items){
+    const size=await imgSize(it.data);
+    let dw=cellW, dh=cellW*0.7;
+    if(size && size.w>0){ dh=cellW*(size.h/size.w); if(dh>maxH){ dh=maxH; dw=maxH*(size.w/size.h); } }
+    const capH = it.cap?5:0;
+    const cellH=dh+capH+3;
+    if(col===0){
+      if(_pdfY+cellH>PH-M){ doc.addPage(); _pdfY=M; }
+      rowTopY=_pdfY; rowMaxH=0;
+    }
+    const x=M+col*(cellW+gap);
+    try{
+      const fmt=it.data.indexOf('image/png')>-1?'PNG':'JPEG';
+      doc.addImage(it.data, fmt, x, rowTopY, dw, dh, undefined, 'FAST');
+    }catch(e){ /* defektes Bild überspringen */ }
+    doc.setDrawColor(232,226,210); doc.setLineWidth(0.2); doc.rect(x,rowTopY,dw,dh);
+    if(it.cap){ doc.setTextColor(138,132,114); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+      doc.text(doc.splitTextToSize(it.cap,cellW), x, rowTopY+dh+4); }
+    rowMaxH=Math.max(rowMaxH, cellH);
+    col++;
+    if(col===2){ col=0; _pdfY=rowTopY+rowMaxH+2; }
+  }
+  if(col===1){ _pdfY=rowTopY+rowMaxH+2; }
+}
+
+/* Formular-Modul (Stammdaten) ins PDF */
+async function pdfFormModule(doc, modId, def){
+  const d=DATA[modId]||{};
+  let any=false;
+  def.sections.forEach(s=>{
+    const rows=[];
+    s.fields.forEach(f=>{
+      if(f.type==='info') return;
+      if(f.showIf && d[f.showIf.k]!==f.showIf.val) return;
+      const v=fmtValue(f,d[f.k]);
+      if(v!==null) rows.push([f.label, v]);
+    });
+    if(rows.length){ any=true; pdfSectionTitle(doc, s.title); pdfKVTable(doc, rows); }
+  });
+  if(!any){ doc.setTextColor(180,170,150); doc.setFont('helvetica','italic'); doc.setFontSize(10);
+    doc.text('Keine Angaben erfasst.', 16, _pdfY+2); _pdfY+=8; }
+}
+
+/* Bauteil-Modul ins PDF */
+async function pdfPartsModule(doc, modId, def){
+  const parts=DATA[modId]._parts||[];
+  if(!parts.length){ doc.setTextColor(180,170,150); doc.setFont('helvetica','italic'); doc.setFontSize(10);
+    doc.text('Keine Bauteile erfasst.', 16, _pdfY+2); _pdfY+=8; return; }
+  for(let idx=0;idx<parts.length;idx++){
+    const inst=parts[idx];
+    const tdef=inst._type?def.types.find(t=>t.id===inst._type):null;
+    const title=(inst.name||(tdef?tdef.label:'Bauteil '+(idx+1)))+(tdef?' · '+tdef.label:'');
+    pdfPartTitle(doc, title);
+    const rows=[];
+    if(tdef){
+      tdef.fields.forEach(f=>{
+        if(f.type==='info') return;
+        if(f.showIf && inst[f.showIf.k]!==f.showIf.val) return;
+        const v=fmtValue(f,inst[f.k]);
+        if(v!==null) rows.push([f.label, v]);
+      });
+    }
+    if(inst.bemerkung) rows.push(['Bemerkungen', inst.bemerkung]);
+    if(rows.length) pdfKVTable(doc, rows);
+    const imgs=[...(inst._foto||[]), ...((inst._skizze||[]).map(s=>({data:s.data,cap:'Skizze'})))];
+    if(imgs.length) await pdfImages(doc, imgs);
+    _pdfY+=2;
+  }
+}
 
 /* ============ VIEW SWITCH ============ */
 function switchView(name){

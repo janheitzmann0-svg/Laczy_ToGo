@@ -2,12 +2,12 @@
    Macht die App offline lauffähig (cache-first für App-Dateien).
    Bei jedem App-Update CACHE_VERSION erhöhen, damit Nutzer die neue Version bekommen. */
 
-const CACHE_VERSION = 'laczy-togo-v4';
+const CACHE_VERSION = 'laczy-togo-v5';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './html2pdf.bundle.min.js',
+  './jspdf.umd.min.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
